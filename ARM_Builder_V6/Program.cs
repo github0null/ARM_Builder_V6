@@ -685,18 +685,14 @@ namespace ARM_Builder_V6
                     warn("Output Hex file failed !, msg: " + err.Message);
                 }
 
-                TimeSpan tSpan = DateTime.Now.Subtract(time);
-                log("\r\n");
-                doneWithLable("-------------------- Build successfully ! Elapsed time "
-                    + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " --------------------\r\n\r\n");
+                //----------------- flush to database ----------------
 
                 if (!checkMode(BuilderMode.FAST))
                 {
                     // update source to db if use Normal mode
                     if (updateSource(dumpPath, commands.Keys) != CODE_DONE)
                     {
-                        warn("update source to db failed !\r\n");
+                        warn("\r\nupdate source to db failed !");
                     }
                 }
                 else
@@ -704,10 +700,17 @@ namespace ARM_Builder_V6
                     // flush db after build success if use Fast mode
                     if (flushDB(dumpPath) != CODE_DONE)
                     {
-                        warn("flush to db failed !\r\n");
+                        warn("\r\nflush to db failed !");
                     }
                 }
 
+                //-----------------------------------------------------
+
+                TimeSpan tSpan = DateTime.Now.Subtract(time);
+                log("\r\n");
+                doneWithLable("-------------------- Build successfully ! Elapsed time "
+                    + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
+                    + " --------------------\r\n\r\n");
             }
             catch (Exception err)
             {
