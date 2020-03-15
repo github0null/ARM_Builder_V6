@@ -1,0 +1,290 @@
+{
+    "name": "ARMCC V5",
+    "toolchain": "AC5",
+    "global": {
+        "misc-controls": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "c/cpp",
+                "asm",
+                "linker"
+            ],
+            "description": ""
+        },
+        "microcontroller-cpu": {
+            "type": "keyValue",
+            "command": "--cpu ",
+            "enum": {
+                "cortex-m0": "Cortex-M0",
+                "cortex-m0+": "Cortex-M0+",
+                "cortex-m3": "Cortex-M3",
+                "cortex-m4-none": "Cortex-M4 --fpu=SoftVFP",
+                "cortex-m4-sp": "Cortex-M4.fp",
+                "cortex-m7-none": "Cortex-M7 --fpu=SoftVFP",
+                "cortex-m7-sp": "Cortex-M7.fp.sp",
+                "cortex-m7-dp": "Cortex-M7.fp.dp"
+            },
+            "group": [
+                "c/cpp",
+                "asm",
+                "linker"
+            ],
+            "description": ""
+        },
+        "execute-only-code": {
+            "type": "selectable",
+            "command": {
+                "true": "--execute_only",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ],
+            "description": ""
+        },
+        "read-only-position-independent": {
+            "type": "selectable",
+            "command": {
+                "true": "--apcs=/ropi",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ],
+            "description": ""
+        },
+        "read-write-position-independent": {
+            "type": "selectable",
+            "command": {
+                "true": "--apcs=/rwpi",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ],
+            "description": ""
+        },
+        "split-load-and-store-multiple": {
+            "type": "selectable",
+            "command": {
+                "true": "--split_ldm",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ],
+            "description": ""
+        }
+    },
+    "groups": {
+        "c/cpp": {
+            "$path": "ARMCC\\Bin\\armcc.exe",
+            "$includeHead": "-I",
+            "$defineHead": "-D",
+            "$output": "-o ",
+            "$invokeCmd": "--Via ",
+            "$fileCmd": "",
+            "$default": [
+                "-c",
+                "-g",
+                "--apcs=interwork"
+            ],
+            "$language-c": {
+                "type": "keyValue",
+                "command": "",
+                "enum": {
+                    "default": ""
+                },
+                "description": ""
+            },
+            "$language-cpp": {
+                "type": "keyValue",
+                "command": "--cpp",
+                "enum": {
+                    "default": ""
+                },
+                "description": ""
+            },
+            "c99-mode": {
+                "type": "selectable",
+                "command": {
+                    "true": "--c99",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "use-microLIB": {
+                "type": "selectable",
+                "command": {
+                    "true": "-D__MICROLIB",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "optimization": {
+                "type": "keyValue",
+                "command": "",
+                "enum": {
+                    "default": "-O2",
+                    "level-0": "-O0",
+                    "level-1": "-O1",
+                    "level-2": "-O2",
+                    "level-3": "-O3"
+                },
+                "description": ""
+            },
+            "optimize-for-time": {
+                "type": "selectable",
+                "command": {
+                    "true": "-Otime",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "one-elf-section-per-function": {
+                "type": "selectable",
+                "command": {
+                    "true": "--split_sections",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "strict-ANSI-C": {
+                "type": "selectable",
+                "command": {
+                    "true": "--strict",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "enum-container-always-int": {
+                "type": "selectable",
+                "command": {
+                    "true": "--enum_is_int",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "plain-char-is-signed": {
+                "type": "selectable",
+                "command": {
+                    "true": "--signed_chars",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "gnu-extensions": {
+                "type": "selectable",
+                "command": {
+                    "true": "--gnu",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "warnings": {
+                "type": "keyValue",
+                "command": "",
+                "enum": {
+                    "default": "",
+                    "unspecified": "",
+                    "no-warnings": "-W",
+                    "all-warnings": ""
+                },
+                "description": ""
+            }
+        },
+        "asm": {
+            "$path": "ARMCC\\Bin\\armasm.exe",
+            "$includeHead": "-I",
+            "$defineHead": "--pd ",
+            "$output": "--xref -o ",
+            "$invokeCmd": "--Via ",
+            "$default": [
+                "-g",
+                "--apcs=interwork"
+            ],
+            "use-microLIB": {
+                "type": "selectable",
+                "command": {
+                    "true": "--pd \"__MICROLIB SETA 1\"",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "thumb-mode": {
+                "type": "selectable",
+                "command": {
+                    "true": "--16",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "no-warnings": {
+                "type": "selectable",
+                "command": {
+                    "true": "--nowarn",
+                    "false": ""
+                },
+                "description": ""
+            }
+        },
+        "linker": {
+            "$path": "ARMCC\\Bin\\armlink.exe",
+            "$default": [],
+            "$invokeCmd": "--Via ",
+            "$output": "-o ",
+            "$default-tail": [
+                "--strict",
+                "--summary_stderr --info summarysizes --map --xref --callgraph --symbols",
+                "--info sizes --info totals --info unused --info veneers"
+            ],
+            "$link-map": {
+                "type": "value",
+                "command": "--list ",
+                "description": ""
+            },
+            "use-microLIB": {
+                "type": "selectable",
+                "command": {
+                    "true": "--library_type=microlib",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "not-search-std-libs": {
+                "type": "selectable",
+                "command": {
+                    "true": "--noscanlib",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "read-only-position-independent": {
+                "type": "selectable",
+                "command": {
+                    "true": "--ropi",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "read-write-position-independent": {
+                "type": "selectable",
+                "command": {
+                    "true": "--rwpi",
+                    "false": ""
+                },
+                "description": ""
+            },
+            "link-scatter": {
+                "type": "value",
+                "command": "--scatter ",
+                "description": ""
+            }
+        }
+    }
+}
