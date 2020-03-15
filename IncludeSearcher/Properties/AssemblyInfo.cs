@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("IncludeSearcher")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("HP Inc.")]
+[assembly: AssemblyCompany("CL Inc.")]
 [assembly: AssemblyProduct("IncludeSearcher")]
-[assembly: AssemblyCopyright("Copyright © HP Inc. 2020")]
+[assembly: AssemblyCopyright("Copyright © CL Inc. 2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
