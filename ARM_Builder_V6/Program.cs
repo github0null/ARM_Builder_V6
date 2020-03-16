@@ -413,7 +413,7 @@ namespace ARM_Builder_V6
 
         // file filters
         static readonly Regex cFileFilter = new Regex(@"\.c$", RegexOptions.IgnoreCase);
-        static readonly Regex asmFileFilter = new Regex(@"\.s$", RegexOptions.IgnoreCase);
+        static readonly Regex asmFileFilter = new Regex(@"\.(?:s|asm)$", RegexOptions.IgnoreCase);
         static readonly Regex libFileFilter = new Regex(@"\.lib$", RegexOptions.IgnoreCase);
         static readonly Regex cppFileFilter = new Regex(@"\.(?:cpp|cxx|cc|c\+\+)$", RegexOptions.IgnoreCase);
 
