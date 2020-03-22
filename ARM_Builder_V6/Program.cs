@@ -755,7 +755,7 @@ namespace ARM_Builder_V6
                 }
 
                 // flush to database
-                updateDatabase();
+                updateDatabase(commands.Keys);
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("\r\n");
@@ -777,7 +777,7 @@ namespace ARM_Builder_V6
                 File.AppendAllText(logFile, txt);
 
                 // flush to database
-                updateDatabase();
+                updateDatabase(commands.Keys);
 
                 return CODE_ERR;
             }
@@ -938,18 +938,12 @@ namespace ARM_Builder_V6
             return CODE_DONE;
         }
 
-        static void updateDatabase(IEnumerable<string> sourceList = null)
+        static void updateDatabase(IEnumerable<string> sourceList)
         {
             try
             {
                 if (!checkMode(BuilderMode.FAST))
                 {
-                    if (sourceList == null)
-                    {
-                        warn("\r\n source list can't be null !");
-                        return;
-                    }
-
                     // update source to db if use Normal mode
                     if (updateSource(dumpPath, sourceList) != CODE_DONE)
                     {
