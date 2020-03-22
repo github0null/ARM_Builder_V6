@@ -3,26 +3,27 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
+using System.Configuration;
 
-namespace IncludeAnalyzer
+namespace IncludeSearcher
 {
     class Program
     {
         static readonly int CODE_ERR = 1;
         static readonly int CODE_DONE = 0;
 
-        static readonly string dbName = "inc.db3";
-        static readonly string tableName = "incList";
-        static readonly string cacheName = "incCache";
+        static readonly string dbName = ConfigurationManager.AppSettings["dbName"] ?? "eide.dat";
         static readonly string dateFormat = "yyyy-MM-dd HH:mm:ss";
+
+        static readonly Dictionary<string, string> tables = new Dictionary<string, string>() {
+            {"datas", "files" }
+        };
 
         static FileInfo[] sourceList;
         static string[] headerDirsList;
         static Dictionary<string, string> headersMap = new Dictionary<string, string>();
-        static Dictionary<string, IEnumerable<string>> searchCache = new Dictionary<string, IEnumerable<string>>();
+        static Dictionary<string, DBData> searchCache = new Dictionary<string, DBData>();
 
         enum Mode
         {
@@ -33,20 +34,21 @@ namespace IncludeAnalyzer
 
         enum FileStateFlag
         {
-            New = 0,
+            Stable = 0,
             Changed,
-            Stable
+            New
         }
 
-        class FileState
+        class DBData
         {
-            public readonly FileStateFlag state;
-            public readonly string path;
+            public string path;
+            public string lastTime;
+            public string[] depList;
+            public FileStateFlag state;
 
-            public FileState(string path, FileStateFlag state)
+            public DBData()
             {
-                this.path = path;
-                this.state = state;
+                state = FileStateFlag.Stable;
             }
         }
 
@@ -145,12 +147,44 @@ namespace IncludeAnalyzer
             // parse params
             prepareParams(paramFile.FullName);
 
-            // start
-            SQLiteCommand command = new SQLiteCommand(
-               "select lastWriteTime from " + tableName + " where path=@path;", conn);
-            command.Parameters.Add(new SQLiteParameter("@path", DbType.String));
+            // get all from database
+            SQLiteCommand selectCmd = new SQLiteCommand("select * from " + tables["datas"] + ";", conn);
+            SQLiteDataReader reader = selectCmd.ExecuteReader();
+            while (reader.Read())
+            {
+                string deps = reader.GetString(2).Trim();
 
-            Dictionary<int, FileState> changesCache = new Dictionary<int, FileState>();
+                DBData dat = new DBData()
+                {
+                    path = reader.GetString(0),
+                    lastTime = reader.GetString(1),
+                    depList = string.IsNullOrEmpty(deps) ? new string[0] : deps.Split(';')
+                };
+
+                if (File.Exists(dat.path))
+                {
+                    dat.state = getFileState(dat.path, DateTime.Parse(dat.lastTime), out DateTime newTime);
+
+                    // update after header changed
+                    if (dat.state != FileStateFlag.Stable)
+                    {
+                        dat.lastTime = newTime.ToString(dateFormat);
+                        dat.depList = searchFileIncludes(headerDirsList, dat.path);
+                    }
+
+                    if (searchCache.ContainsKey(dat.path))
+                    {
+                        searchCache[dat.path] = dat;
+                    }
+                    else
+                    {
+                        searchCache.Add(dat.path, dat);
+                    }
+                }
+            }
+            reader.Close();
+
+            //-------------------------------------------------------------------
 
             foreach (var srcFile in sourceList)
             {
@@ -162,7 +196,7 @@ namespace IncludeAnalyzer
                     {
                         log("[File] [New] " + srcFile.FullName);
 
-                        foreach (var reqF in reqHeaders)
+                        foreach (string reqF in reqHeaders)
                         {
                             logWithLabel("New", reqF);
                         }
@@ -174,26 +208,17 @@ namespace IncludeAnalyzer
                         FileStateFlag totalState = FileStateFlag.Stable;
 
                         // check source file
-                        int hashCode = srcFile.FullName.GetHashCode();
-                        if (!changesCache.ContainsKey(hashCode))
+                        if (searchCache.ContainsKey(srcFile.FullName))
                         {
-                            if (mode != Mode.Update)
-                            {
-                                checkDiff(command, srcFile.FullName, delegate (FileStateFlag state) {
-                                    log("[File-" + Enum.GetName(typeof(FileStateFlag), state) + "]" + srcFile.FullName);
-                                    totalState = state;
-                                    changesCache.Add(hashCode, new FileState(srcFile.FullName, state));
-                                });
-                            }
-                            else
-                            {
-                                totalState = FileStateFlag.Stable;
-                                changesCache.Add(hashCode, new FileState(srcFile.FullName, FileStateFlag.New));
-                            }
+                            FileStateFlag state = searchCache[srcFile.FullName].state;
+                            log("[File-" + Enum.GetName(typeof(FileStateFlag), state) + "]" + srcFile.FullName);
+                            totalState = state;
                         }
                         else
                         {
-                            totalState = changesCache[hashCode].state;
+                            error("[ERROR] not found source in cache !");
+                            log("[File-" + Enum.GetName(typeof(FileStateFlag), FileStateFlag.New) + "]" + srcFile.FullName);
+                            totalState = FileStateFlag.New;
                         }
 
                         // check header file if source not changed
@@ -201,34 +226,20 @@ namespace IncludeAnalyzer
                         {
                             foreach (var reqF in reqHeaders)
                             {
-                                hashCode = reqF.GetHashCode();
-                                if (!changesCache.ContainsKey(hashCode))
+                                if (searchCache.ContainsKey(reqF))
                                 {
-                                    if (mode != Mode.Update)
+                                    FileStateFlag state = searchCache[reqF].state;
+                                    if (state != FileStateFlag.Stable)
                                     {
-                                        checkDiff(command, reqF, delegate (FileStateFlag state) {
-                                            if (state != FileStateFlag.Stable)
-                                            {
-                                                totalState = FileStateFlag.Changed;
-                                                //logWithLabel(Enum.GetName(typeof(FileStateFlag), state), reqF);
-                                            }
-                                            changesCache.Add(hashCode, new FileState(reqF, state));
-                                        });
-                                    }
-                                    else
-                                    {
-                                        totalState = FileStateFlag.New;
-                                        changesCache.Add(hashCode, new FileState(reqF, FileStateFlag.New));
+                                        totalState = FileStateFlag.Changed;
+                                        break;
                                     }
                                 }
                                 else
                                 {
-                                    FileStateFlag state = changesCache[hashCode].state;
-                                    if (state != FileStateFlag.Stable)
-                                    {
-                                        //logWithLabel(Enum.GetName(typeof(FileStateFlag), state), reqF);
-                                        totalState = state;
-                                    }
+                                    error("[ERROR] not found header in cache !");
+                                    totalState = FileStateFlag.New;
+                                    break;
                                 }
                             }
                         }
@@ -247,22 +258,19 @@ namespace IncludeAnalyzer
             // update to cache
             // command: insert or replace into <tableName> (path,lastWriteTime) values()
             SQLiteCommand insertCmd = new SQLiteCommand(
-                "insert or replace into " + cacheName + " values(@hash,@path,@time);", conn);
-            insertCmd.Parameters.Add(new SQLiteParameter("@hash", DbType.String));
+                "insert or replace into " + getTableCacheName(tables["datas"]) + " values(@path,@time,@deps);", conn);
             insertCmd.Parameters.Add(new SQLiteParameter("@path", DbType.String));
             insertCmd.Parameters.Add(new SQLiteParameter("@time", DbType.String));
+            insertCmd.Parameters.Add(new SQLiteParameter("@deps", DbType.String));
 
             var trans = conn.BeginTransaction();
 
-            foreach (var fInfo in changesCache.Values)
+            foreach (var fInfo in searchCache.Values)
             {
-                if (fInfo.state != FileStateFlag.Stable)
-                {
-                    insertCmd.Parameters[0].Value = getMD5(fInfo.path);
-                    insertCmd.Parameters[1].Value = fInfo.path;
-                    insertCmd.Parameters[2].Value = File.GetLastWriteTime(fInfo.path).ToString(dateFormat);
-                    insertCmd.ExecuteNonQuery();
-                }
+                insertCmd.Parameters[0].Value = fInfo.path;
+                insertCmd.Parameters[1].Value = fInfo.lastTime;
+                insertCmd.Parameters[2].Value = string.Join(";", fInfo.depList);
+                insertCmd.ExecuteNonQuery();
             }
 
             try
@@ -289,7 +297,84 @@ namespace IncludeAnalyzer
             return CODE_DONE;
         }
 
-        //===================================
+        //=====================================
+
+        static SQLiteConnection initDatabase(DirectoryInfo dir)
+        {
+            try
+            {
+                string dbPath = dir.FullName + Path.DirectorySeparatorChar + dbName;
+
+                if (!File.Exists(dbPath))
+                {
+                    SQLiteConnection.CreateFile(dbPath);
+                }
+
+                SQLiteConnectionStringBuilder conStr = new SQLiteConnectionStringBuilder
+                {
+                    DataSource = dbPath,
+                    FailIfMissing = true
+                };
+
+                SQLiteConnection conn = new SQLiteConnection(conStr.ConnectionString);
+                conn.Open();
+
+                try
+                {
+                    // check SQLite db is valid
+                    (new SQLiteCommand("select sqlite_version() AS 'Version';", conn)).ExecuteNonQuery();
+                }
+                catch (SQLiteException e)
+                {
+                    if (e.ResultCode == SQLiteErrorCode.NotADb)
+                    {
+                        conn.Close();
+                        conn.Dispose();
+                        error(e.Message);
+                        File.Delete(dbPath);
+                        SQLiteConnection.CreateFile(dbPath);
+                        conn = new SQLiteConnection(conStr.ConnectionString);
+                        conn.Open();
+                    }
+                }
+
+                SQLiteCommand command = new SQLiteCommand(conn);
+
+                // create all tables and caches
+                foreach (var tableName in tables.Values)
+                {
+                    // create table
+                    command.CommandText = "CREATE TABLE IF NOT EXISTS " + tableName + "(" +
+                        "path TEXT PRIMARY KEY NOT NULL" +
+                        ",lastWriteTime VARCHAR(64) NOT NULL" +
+                        ",depends TEXT NOT NULL" +
+                        ");";
+                    command.ExecuteNonQuery();
+
+                    // create cache
+                    command.CommandText = "CREATE TABLE IF NOT EXISTS " + getTableCacheName(tableName) + "(" +
+                        "path TEXT PRIMARY KEY NOT NULL" +
+                        ",lastWriteTime VARCHAR(64) NOT NULL" +
+                        ",depends TEXT NOT NULL" +
+                        ");";
+                    command.ExecuteNonQuery();
+                }
+
+                command.Dispose();
+                return conn;
+            }
+            catch (Exception e)
+            {
+                error(e.Message);
+            }
+
+            return null;
+        }
+
+        static string getTableCacheName(string tName)
+        {
+            return tName + "_cache";
+        }
 
         static void prepareParams(string paramsPath)
         {
@@ -317,21 +402,20 @@ namespace IncludeAnalyzer
                                 {
                                     if (headerFilter.IsMatch(hFile))
                                     {
-                                        string path = hFile.ToLower();
-                                        string name = Path.GetFileName(path);
+                                        string name = Path.GetFileName(hFile);
                                         if (!headersMap.ContainsKey(name))
                                         {
-                                            headersMap.Add(name, path);
+                                            headersMap.Add(name, hFile);
                                         }
                                     }
                                 }
-                                dirList.Add(_line.ToLower());
+                                dirList.Add(_line);
                             }
                             break;
                         case "[sourceList]":
                             if (File.Exists(_line))
                             {
-                                sList.Add(new FileInfo(_line.ToLower()));
+                                sList.Add(new FileInfo(_line));
                             }
                             break;
                         default:
@@ -393,9 +477,26 @@ namespace IncludeAnalyzer
         {
             HashSet<string> resList = new HashSet<string>();
             Stack<string> fStack = new Stack<string>(64);
+            DBData srcData;
 
             // search source file
-            foreach (var item in searchFileIncludes(headerDirs, path))
+            if (searchCache.ContainsKey(path))
+            {
+                srcData = searchCache[path];
+            }
+            else
+            {
+                srcData = new DBData()
+                {
+                    path = path,
+                    lastTime = File.GetLastWriteTime(path).ToString(dateFormat),
+                    state = FileStateFlag.New,
+                    depList = searchFileIncludes(headerDirs, path)
+                };
+                searchCache.Add(path, srcData);
+            }
+
+            foreach (var item in srcData.depList)
             {
                 fStack.Push(item);
                 resList.Add(item);
@@ -407,7 +508,7 @@ namespace IncludeAnalyzer
 
                 if (searchCache.ContainsKey(headerPath))
                 {
-                    foreach (var item in searchCache[headerPath])
+                    foreach (var item in searchCache[headerPath].depList)
                     {
                         if (resList.Add(item))
                         {
@@ -417,8 +518,15 @@ namespace IncludeAnalyzer
                 }
                 else
                 {
-                    var resultSet = searchFileIncludes(headerDirs, headerPath);
-                    searchCache.Add(headerPath, resultSet);
+                    string[] resultSet = searchFileIncludes(headerDirs, headerPath);
+
+                    searchCache.Add(headerPath, new DBData
+                    {
+                        path = headerPath,
+                        lastTime = File.GetLastWriteTime(headerPath).ToString(dateFormat),
+                        depList = resultSet,
+                        state = FileStateFlag.New
+                    });
 
                     foreach (var item in resultSet)
                     {
@@ -447,7 +555,7 @@ namespace IncludeAnalyzer
                     var matcher = matchInc(line);
                     if (matcher.Success)
                     {
-                        string fName = matcher.Value.Replace('/', '\\').ToLower();
+                        string fName = matcher.Value.Replace('/', '\\');
                         string res = null;
 
                         if (fName.StartsWith("."))
@@ -490,110 +598,11 @@ namespace IncludeAnalyzer
             return result;
         }
 
-        static void checkDiff(SQLiteCommand command, string fPath, CheckDiffCallBk CallBk)
+        static FileStateFlag getFileState(string path, DateTime prevTime, out DateTime cTime)
         {
-            command.Parameters[0].Value = fPath;
-            var reader = command.ExecuteReader();
-            try
-            {
-                if (reader.Read())
-                {
-                    var preTime = DateTime.Parse(reader.GetString(0));
-                    var cTime = File.GetLastWriteTime(fPath);
-                    cTime = DateTime.Parse(cTime.ToString(dateFormat));
-
-                    if (DateTime.Compare(cTime, preTime) > 0)
-                    {
-                        CallBk(FileStateFlag.Changed);
-                    }
-                    else
-                    {
-                        CallBk(FileStateFlag.Stable);
-                    }
-                }
-                else
-                {
-                    CallBk(FileStateFlag.New);
-                }
-
-                reader.Close();
-            }
-            catch (Exception e)
-            {
-                CallBk(FileStateFlag.New);
-                error(e.Message);
-                reader.Close();
-            }
-        }
-
-        static SQLiteConnection initDatabase(DirectoryInfo dir)
-        {
-            try
-            {
-                string dbPath = dir.FullName + Path.DirectorySeparatorChar + dbName;
-
-                if (!File.Exists(dbPath))
-                {
-                    SQLiteConnection.CreateFile(dbPath);
-                }
-
-                SQLiteConnectionStringBuilder conStr = new SQLiteConnectionStringBuilder
-                {
-                    DataSource = dbPath,
-                    FailIfMissing = true
-                };
-
-                SQLiteConnection conn = new SQLiteConnection(conStr.ConnectionString);
-                conn.Open();
-
-                try
-                {
-                    // check SQLite db is valid
-                    (new SQLiteCommand("select sqlite_version() AS 'Version';", conn)).ExecuteNonQuery();
-                }
-                catch (SQLiteException e)
-                {
-                    if (e.ResultCode == SQLiteErrorCode.NotADb)
-                    {
-                        conn.Close();
-                        conn.Dispose();
-                        error(e.Message);
-                        File.Delete(dbPath);
-                        SQLiteConnection.CreateFile(dbPath);
-                        conn = new SQLiteConnection(conStr.ConnectionString);
-                        conn.Open();
-                    }
-                }
-
-                // create incList
-                SQLiteCommand command = new SQLiteCommand(conn)
-                {
-                    CommandText = "CREATE TABLE IF NOT EXISTS " + tableName + "(" +
-                    "uid VARCHAR(256) PRIMARY KEY NOT NULL" +
-                    ",path TEXT NOT NULL" +
-                    ",lastWriteTime VARCHAR(64) NOT NULL" +
-                    ");"
-                };
-                command.ExecuteNonQuery();
-
-                // create cache
-                command.CommandText = "CREATE TABLE IF NOT EXISTS " + cacheName + "(" +
-                    "uid VARCHAR(256) PRIMARY KEY NOT NULL" +
-                    ",path TEXT NOT NULL" +
-                    ",lastWriteTime VARCHAR(64) NOT NULL" +
-                    ");";
-                command.ExecuteNonQuery();
-
-                command.Dispose();
-
-                return conn;
-            }
-            catch (Exception e)
-            {
-                error(e.Message);
-            }
-
-            return null;
+            cTime = File.GetLastWriteTime(path);
+            cTime = DateTime.Parse(cTime.ToString(dateFormat));
+            return DateTime.Compare(cTime, prevTime) > 0 ? FileStateFlag.Changed : FileStateFlag.Stable;
         }
 
         static int flushDB(SQLiteConnection conn)
@@ -601,13 +610,21 @@ namespace IncludeAnalyzer
             try
             {
                 // insert or replace into <tableName> (path,lastWriteTime) values()
-                SQLiteCommand command = new SQLiteCommand(
-                    "insert or replace into " + tableName + " select * from " + cacheName + ";", conn);
-                command.ExecuteNonQuery();
+                SQLiteCommand command = new SQLiteCommand(conn);
+                foreach (var tName in tables.Values)
+                {
+                    string cacheName = getTableCacheName(tName);
+                    // delete all datas
+                    command.CommandText = "delete from " + tName + ";";
+                    command.ExecuteNonQuery();
+                    // update datas from cache
+                    command.CommandText = "insert or replace into " + tName + " select * from " + cacheName + ";";
+                    command.ExecuteNonQuery();
+                    // delete all cache
+                    command.CommandText = "delete from " + cacheName + ";";
+                    command.ExecuteNonQuery();
+                }
 
-                command.CommandText = "delete from " + cacheName + ";";
-                command.ExecuteNonQuery();
-                
                 command.Dispose();
             }
             catch (Exception err)
@@ -622,14 +639,7 @@ namespace IncludeAnalyzer
             return CODE_DONE;
         }
 
-        static string getMD5(string str)
-        {
-            MD5 md5 = MD5.Create();
-            return BitConverter.ToString(md5.ComputeHash(Encoding.UTF8.GetBytes(str)))
-                .Replace("-", "").ToLower();
-        }
-
-        //====================================
+        //======================================
 
         static void log(string txt)
         {

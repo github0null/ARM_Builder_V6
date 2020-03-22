@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace ARM_Builder_V6
 {
@@ -30,14 +31,41 @@ namespace ARM_Builder_V6
 
         public delegate void CmdVisitor(string key, string cmdLine);
 
+        enum ToolChain
+        {
+            AC5,
+            AC6,
+            None
+        }
+
+        //-----------------------------------------------------------
+
         public static readonly string optionKey = "options";
 
         private readonly Encoding encoding;
         private readonly Encoding asmEncoding;
 
+        private readonly Dictionary<string, string> cmdLines = new Dictionary<string, string>();
+        private readonly Dictionary<string, JObject> paramObj = new Dictionary<string, JObject>();
+        private readonly Dictionary<string, JObject> models = new Dictionary<string, JObject>();
+
+        private readonly string cCompilerName;
+        private readonly string asmCompilerName;
+        private readonly string linkerName;
+
+        private readonly string outDir;
+        private readonly string binDir;
+        private readonly JObject model;
+        private readonly JObject parameters;
+
+        private readonly ToolChain toolchain;
+        private readonly Dictionary<string, int> objNameMap = new Dictionary<string, int>();
+
         public CmdGenerator(JObject cModel, JObject cParams, string bindir, string outpath)
         {
-            if (cModel["toolchain"].Value<string>() == "AC5")
+            toolchain = cModel["toolchain"].Value<string>() == "AC5" ? ToolChain.AC5 : ToolChain.AC6;
+
+            if (toolchain == ToolChain.AC5)
             {
                 encoding = Encoding.Default;
             }
@@ -90,6 +118,9 @@ namespace ARM_Builder_V6
 
             // init command line from model
             JObject globalParams = paramObj["global"];
+
+            // set outName to unique
+            getUniqueName(getOutName());
 
             foreach (var model in models)
             {
@@ -178,12 +209,27 @@ namespace ARM_Builder_V6
             }
         }
 
+        private string getUniqueName(string expectedName)
+        {
+            string lowerName = expectedName.ToLower();
+            if (objNameMap.ContainsKey(lowerName))
+            {
+                objNameMap[lowerName] += 1;
+                return expectedName + '_' + objNameMap[lowerName].ToString();
+            }
+            else
+            {
+                objNameMap.Add(lowerName, 0);
+                return expectedName;
+            }
+        }
+
         public CmdInfo fromCFile(string fpath)
         {
             JObject ccModel = models["c"];
             JObject cParams = paramObj["c"];
 
-            string fName = Path.GetFileNameWithoutExtension(fpath);
+            string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
             string outPath = outDir + Path.DirectorySeparatorChar + fName + ".o";
 
             string langOption = cParams.ContainsKey("language-c") ? cParams["language-c"].Value<string>() : null;
@@ -191,6 +237,12 @@ namespace ARM_Builder_V6
             string cmdLine = getCommandValue((JObject)ccModel["$language-c"], langOption).TrimStart()
                 + cmdLines["c"] + " " + ccModel["$output"].Value<string>() + "\"" + outPath.Replace('\\', '/') + "\""
                 + " " + (fileCmd ?? "") + "\"" + fpath.Replace('\\', '/') + "\"";
+
+            if (toolchain == ToolChain.AC5)
+            {
+                string depPath = outDir + "/" + fName + ".v5.d";
+                cmdLine += " --depend \"" + depPath.Replace('\\', '/') + "\"";
+            }
 
             FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + ".__i");
             File.WriteAllText(paramFile.FullName, cmdLine, encoding);
@@ -209,7 +261,7 @@ namespace ARM_Builder_V6
             JObject cppModel = models["cpp"];
             JObject cppParams = paramObj["cpp"];
 
-            string fName = Path.GetFileNameWithoutExtension(fpath);
+            string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
             string outPath = outDir + Path.DirectorySeparatorChar + fName + ".o";
 
             string langOption = cppParams.ContainsKey("language-cpp") ? cppParams["language-cpp"].Value<string>() : null;
@@ -217,6 +269,12 @@ namespace ARM_Builder_V6
             string cmdLine = getCommandValue((JObject)cppModel["$language-cpp"], langOption).TrimStart()
                 + cmdLines["cpp"] + " " + cppModel["$output"].Value<string>() + "\"" + outPath.Replace('\\', '/') + "\""
                 + " " + (fileCmd ?? "") + "\"" + fpath.Replace('\\', '/') + "\"";
+
+            if (toolchain == ToolChain.AC5)
+            {
+                string depPath = outDir + "/" + fName + ".v5.d";
+                cmdLine += " --depend \"" + depPath.Replace('\\', '/') + "\"";
+            }
 
             FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + ".__i");
             File.WriteAllText(paramFile.FullName, cmdLine, encoding);
@@ -234,12 +292,18 @@ namespace ARM_Builder_V6
         {
             JObject asmModel = models["asm"];
 
-            string fName = Path.GetFileNameWithoutExtension(fpath);
+            string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
             string outPath = outDir + Path.DirectorySeparatorChar + fName + ".o";
 
             string fileCmd = asmModel.ContainsKey("$fileCmd") ? asmModel["$fileCmd"].Value<string>() : null;
             string cmdLine = cmdLines["asm"].TrimStart() + " " + asmModel["$output"].Value<string>() + "\"" + outPath.Replace('\\', '/') + "\""
                 + " " + (fileCmd ?? "") + "\"" + fpath.Replace('\\', '/') + "\"";
+
+            if (toolchain == ToolChain.AC5)
+            {
+                string depPath = outDir + "/" + fName + ".v5.d";
+                cmdLine += " --depend \"" + depPath.Replace('\\', '/') + "\"";
+            }
 
             FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + "._ia");
             File.WriteAllText(paramFile.FullName, cmdLine, asmEncoding);
@@ -257,7 +321,7 @@ namespace ARM_Builder_V6
         {
             JObject linkerModel = models["linker"];
 
-            string outName = parameters.ContainsKey("name") ? parameters["name"].Value<string>() : "main";
+            string outName = getOutName();
             string outPath = outDir + Path.DirectorySeparatorChar + outName + ".axf";
             string mapPath = outDir + Path.DirectorySeparatorChar + outName + ".map";
 
@@ -391,25 +455,14 @@ namespace ARM_Builder_V6
             }
             return cmdLine.TrimStart();
         }
-
-        private readonly Dictionary<string, string> cmdLines = new Dictionary<string, string>();
-        private readonly Dictionary<string, JObject> paramObj = new Dictionary<string, JObject>();
-        private readonly Dictionary<string, JObject> models = new Dictionary<string, JObject>();
-
-        private readonly string cCompilerName;
-        private readonly string asmCompilerName;
-        private readonly string linkerName;
-
-        private readonly string outDir;
-        private readonly string binDir;
-        private readonly JObject model;
-        private readonly JObject parameters;
     }
 
     class Program
     {
         static readonly int CODE_ERR = 1;
         static readonly int CODE_DONE = 0;
+        static readonly int compileThreshold = 16;
+        static readonly string incSearchName = "IncludeSearcher.exe";
 
         // file filters
         static readonly Regex cFileFilter = new Regex(@"\.c$", RegexOptions.IgnoreCase);
@@ -424,6 +477,7 @@ namespace ARM_Builder_V6
 
         static string dumpPath;
         static string binDir;
+        static int reqThreadsNum;
         static JObject compilerModel;
         static JObject paramsObj;
         static string outDir;
@@ -436,7 +490,8 @@ namespace ARM_Builder_V6
         {
             NORMAL = 0,
             FAST,
-            DEBUG
+            DEBUG,
+            MULTHREAD
         }
 
         /**
@@ -482,6 +537,8 @@ namespace ARM_Builder_V6
                 addToSourceList(((JArray)paramsObj["sourceDirs"]).Values<string>());
                 outDir = paramsTable["-o"][0];
                 modeList.Add(BuilderMode.NORMAL);
+                reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
+                reqThreadsNum = reqThreadsNum >= 8 ? 8 : 4;
                 prepareModel();
                 prepareParams(paramsObj);
                 if (paramsTable.ContainsKey("-m"))
@@ -505,6 +562,7 @@ namespace ARM_Builder_V6
                 return CODE_ERR;
             }
 
+            Dictionary<string, CmdGenerator.CmdInfo> commands = new Dictionary<string, CmdGenerator.CmdInfo>();
             Dictionary<string, string> toolPaths = new Dictionary<string, string>();
             Dictionary<Regex, string> tasksEnv = new Dictionary<Regex, string>();
 
@@ -541,7 +599,6 @@ namespace ARM_Builder_V6
                     throw new Exception("Run Tasks Failed !, Stop Build !");
                 }
 
-                Dictionary<string, CmdGenerator.CmdInfo> commands = new Dictionary<string, CmdGenerator.CmdInfo>();
                 List<string> linkerFiles = new List<string>(32);
                 int cCount = 0, asmCount = 0, cppCount = 0;
 
@@ -613,13 +670,25 @@ namespace ARM_Builder_V6
                 log("\r\n");
                 infoWithLable("-------------------- Start compilation... --------------------\r\n");
 
-                foreach (var cmdInfo in commands.Values)
+                if (!checkMode(BuilderMode.MULTHREAD) || commands.Values.Count < compileThreshold)
                 {
-                    log(" > Compile... " + Path.GetFileName(cmdInfo.sourcePath));
-                    if (system(cmdInfo.exePath + " " + cmdInfo.commandLine) != CODE_DONE)
+                    foreach (var cmdInfo in commands.Values)
                     {
-                        throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\"");
+                        log(" > Compile... " + Path.GetFileName(cmdInfo.sourcePath));
+                        if (system(cmdInfo.exePath + " " + cmdInfo.commandLine) != CODE_DONE)
+                        {
+                            throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\"");
+                        }
                     }
+                }
+                else
+                {
+                    int part = commands.Count / reqThreadsNum;
+                    reqThreadsNum = part < 4 ? 4 : reqThreadsNum;
+                    doneWithLable(reqThreadsNum.ToString() + " threads\r\n", true, "Use Multi-Thread Mode");
+                    CmdGenerator.CmdInfo[] cmds = new CmdGenerator.CmdInfo[commands.Count];
+                    commands.Values.CopyTo(cmds, 0);
+                    compileByMulThread(reqThreadsNum, cmds);
                 }
 
                 log("\r\n");
@@ -685,26 +754,8 @@ namespace ARM_Builder_V6
                     warn("Output Hex file failed !, msg: " + err.Message);
                 }
 
-                //----------------- flush to database ----------------
-
-                if (!checkMode(BuilderMode.FAST))
-                {
-                    // update source to db if use Normal mode
-                    if (updateSource(dumpPath, commands.Keys) != CODE_DONE)
-                    {
-                        warn("\r\nupdate source to db failed !");
-                    }
-                }
-                else
-                {
-                    // flush db after build success if use Fast mode
-                    if (flushDB(dumpPath) != CODE_DONE)
-                    {
-                        warn("\r\nflush to db failed !");
-                    }
-                }
-
-                //-----------------------------------------------------
+                // flush to database
+                updateDatabase();
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("\r\n");
@@ -725,6 +776,9 @@ namespace ARM_Builder_V6
                 txt += err.Message + "\r\n" + err.StackTrace + "\r\n\r\n";
                 File.AppendAllText(logFile, txt);
 
+                // flush to database
+                updateDatabase();
+
                 return CODE_ERR;
             }
 
@@ -742,6 +796,64 @@ namespace ARM_Builder_V6
         }
 
         //============================================
+
+        struct TaskData
+        {
+            public ManualResetEvent _event;
+            public int index;
+            public int end;
+        }
+
+        static void compileByMulThread(int thrNum, CmdGenerator.CmdInfo[] cmds)
+        {
+            Thread[] tasks = new Thread[thrNum];
+            ManualResetEvent[] tEvents = new ManualResetEvent[thrNum];
+
+            int part = cmds.Length / thrNum;
+            Exception err = null;
+
+            for (int i = 0; i < thrNum; i++)
+            {
+                tEvents[i] = new ManualResetEvent(false);
+                tasks[i] = new Thread(delegate (object _dat) {
+
+                    TaskData dat = (TaskData)_dat;
+
+                    for (int index = dat.index; index < dat.end; index++)
+                    {
+                        if (err != null)
+                        {
+                            break;
+                        }
+
+                        log(" > Compile... " + Path.GetFileName(cmds[index].sourcePath));
+                        if (system(cmds[index].exePath + " " + cmds[index].commandLine) != CODE_DONE)
+                        {
+                            err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\"");
+                            break;
+                        }
+                    }
+
+                    dat._event.Set();
+                });
+
+                TaskData param = new TaskData
+                {
+                    _event = tEvents[i],
+                    index = i * part
+                };
+                param.end = i == thrNum - 1 ? cmds.Length : param.index + part;
+
+                tasks[i].Start(param);
+            }
+
+            WaitHandle.WaitAll(tEvents);
+
+            if (err != null)
+            {
+                throw err;
+            }
+        }
 
         static int runTasks(string label, string fieldName, Dictionary<Regex, string> envList, bool nLine = false)
         {
@@ -826,6 +938,40 @@ namespace ARM_Builder_V6
             return CODE_DONE;
         }
 
+        static void updateDatabase(IEnumerable<string> sourceList = null)
+        {
+            try
+            {
+                if (!checkMode(BuilderMode.FAST))
+                {
+                    if (sourceList == null)
+                    {
+                        warn("\r\n source list can't be null !");
+                        return;
+                    }
+
+                    // update source to db if use Normal mode
+                    if (updateSource(dumpPath, sourceList) != CODE_DONE)
+                    {
+                        warn("\r\nupdate source to database failed !");
+                    }
+                }
+                else
+                {
+                    // flush db after build success if use Fast mode
+                    if (flushDB(dumpPath) != CODE_DONE)
+                    {
+                        warn("\r\nflush to database failed !");
+                    }
+                }
+            }
+            catch (Exception err)
+            {
+                error("\r\n" + err.Message);
+                warn("\r\nupdate to database failed !");
+            }
+        }
+
         static bool checkMode(BuilderMode mode)
         {
             return modeList.Contains(mode);
@@ -887,7 +1033,7 @@ namespace ARM_Builder_V6
                 File.WriteAllText(paramsPath, string.Join("\r\n", datas.ToArray()));
 
                 Process proc = new Process();
-                proc.StartInfo.FileName = "IncludeAnalyzer.exe";
+                proc.StartInfo.FileName = incSearchName;
                 proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.Arguments = " -p \"" + paramsPath + "\" -d \"" + dumpPath + "\"";
@@ -944,7 +1090,7 @@ namespace ARM_Builder_V6
         static int flushDB(string dumpDir)
         {
             Process proc = new Process();
-            proc.StartInfo.FileName = "IncludeAnalyzer.exe";
+            proc.StartInfo.FileName = incSearchName;
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.UseShellExecute = false;
             proc.StartInfo.Arguments = " -d \"" + dumpDir + "\" -m flush";
@@ -973,7 +1119,7 @@ namespace ARM_Builder_V6
             File.WriteAllText(paramsPath, string.Join("\r\n", datas.ToArray()));
 
             Process proc = new Process();
-            proc.StartInfo.FileName = "IncludeAnalyzer.exe";
+            proc.StartInfo.FileName = incSearchName;
             proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
             proc.StartInfo.UseShellExecute = false;
             proc.StartInfo.Arguments = " -p \"" + paramsPath + "\" -d \"" + dumpDir + "\" -m update";
@@ -1038,19 +1184,19 @@ namespace ARM_Builder_V6
                     {
                         if (cFileFilter.IsMatch(file.Name))
                         {
-                            cList.Add(file.FullName.ToLower());
+                            cList.Add(file.FullName);
                         }
                         else if (cppFileFilter.IsMatch(file.Name))
                         {
-                            cppList.Add(file.FullName.ToLower());
+                            cppList.Add(file.FullName);
                         }
                         else if (asmFileFilter.IsMatch(file.Name))
                         {
-                            asmList.Add(file.FullName.ToLower());
+                            asmList.Add(file.FullName);
                         }
                         else if (libFileFilter.IsMatch(file.Name))
                         {
-                            libList.Add(file.FullName.ToLower());
+                            libList.Add(file.FullName);
                         }
                     }
                 }
