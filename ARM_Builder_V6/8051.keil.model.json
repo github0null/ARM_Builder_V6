@@ -40,6 +40,12 @@
                 "OMF2",
                 "TABS (2)"
             ],
+            "$listPath": {
+                "type": "value",
+                "prefix": "PRINT (",
+                "suffix": ")",
+                "command": "${listPath}"
+            },
             "optimization": {
                 "type": "value",
                 "command": "",
@@ -77,6 +83,13 @@
                 "body": "@${value}"
             },
             "$output": "OBJECT(${out}) EP",
+            "$quotePath": false,
+            "$listPath": {
+                "type": "value",
+                "prefix": "PRINT (",
+                "suffix": ")",
+                "command": "${listPath}"
+            },
             "ram-mode": {
                 "type": "selectable",
                 "prefix": "SET (",

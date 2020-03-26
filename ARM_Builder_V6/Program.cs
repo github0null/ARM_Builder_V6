@@ -427,9 +427,13 @@ namespace ARM_Builder_V6
             string outputSuffix = cModel.ContainsKey("$outputSuffix")
                 ? cModel["$outputSuffix"].Value<string>() : ".o";
 
+            bool isQuote = cModel.ContainsKey("$quotePath")
+                ? cModel["$quotePath"].Value<bool>() : true;
+
             string paramsSuffix = modelName == "asm" ? "._ia" : ".__i";
             string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
             string outPath = outDir + Path.DirectorySeparatorChar + fName + outputSuffix;
+            string listPath = outDir + Path.DirectorySeparatorChar + fName + ".lst";
             string langOption = null;
 
             List<string> commands = new List<string>();
@@ -440,18 +444,24 @@ namespace ARM_Builder_V6
                 commands.Add(getCommandValue((JObject)cModel["$" + langName], langOption));
             }
 
+            if (cModel.ContainsKey("$listPath"))
+            {
+                commands.Add(getCommandValue((JObject)cModel["$listPath"], "")
+                    .Replace("${listPath}", toQuotingPath(listPath, isQuote)));
+            }
+
             string outputFormat = cModel["$output"].Value<string>();
             if (outputFormat.Contains("${in}"))
             {
                 commands.AddRange(cmdLists[modelName]);
-                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath))
-                    .Replace("${in}", toQuotingPath(fpath)));
+                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath, isQuote))
+                    .Replace("${in}", toQuotingPath(fpath, isQuote)));
             }
             else
             {
                 commands.Insert(0, toQuotingPath(fpath));
                 commands.AddRange(cmdLists[modelName]);
-                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath)));
+                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath, isQuote)));
             }
 
             string commandLine = null;
@@ -687,6 +697,8 @@ namespace ARM_Builder_V6
         static readonly List<string> asmList = new List<string>();
         static readonly List<string> libList = new List<string>();
 
+        static readonly string prevWorkDir = Environment.CurrentDirectory;
+
         static string dumpPath;
         static string binDir;
         static int reqThreadsNum;
@@ -782,7 +794,7 @@ namespace ARM_Builder_V6
             try
             {
                 Directory.CreateDirectory(outDir);
-                CmdGenerator cmdGen = new CmdGenerator(compilerModel, paramsObj, binDir, outDir);
+                CmdGenerator cmdGen = new CmdGenerator(compilerModel, paramsObj, ".", outDir);
 
                 // add env path for tasks
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
@@ -791,7 +803,7 @@ namespace ARM_Builder_V6
                 tasksEnv.Add(new Regex(@"\$\{BinDir\}", RegexOptions.IgnoreCase), binDir);
                 tasksEnv.Add(new Regex(@"\$\{OutDir\}", RegexOptions.IgnoreCase), outDir);
                 tasksEnv.Add(new Regex(@"\$\{CompileToolDir\}", RegexOptions.IgnoreCase),
-                    Path.GetDirectoryName(cmdGen.getToolPath("linker")));
+                    Path.GetDirectoryName(binDir + Path.DirectorySeparatorChar + cmdGen.getToolPath("linker")));
 
                 if (checkMode(BuilderMode.DEBUG))
                 {
@@ -806,20 +818,34 @@ namespace ARM_Builder_V6
                     return CODE_DONE;
                 }
 
-                Console.WriteLine();
-
-                // run tasks before build
-                if (runTasks("Run Tasks Before Build", "beforeBuildTasks", tasksEnv, true) != CODE_DONE)
-                {
-                    throw new Exception("Run Tasks Failed !, Stop Build !");
-                }
-
                 List<string> linkerFiles = new List<string>(32);
                 int cCount = 0, asmCount = 0, cppCount = 0;
 
                 toolPaths.Add("C/C++ Compiler", cmdGen.getToolPath("c"));
                 toolPaths.Add("ASM Compiler", cmdGen.getToolPath("asm"));
                 toolPaths.Add("ARM Linker", cmdGen.getToolPath("linker"));
+
+                // =============== Check Compiler Tools ================
+
+                changeWorkDir(binDir);
+
+                foreach (var tool in toolPaths)
+                {
+                    if (!File.Exists(tool.Value))
+                        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
+                }
+
+                resetWorkDir();
+
+                //========================================================
+
+                log("");
+
+                // run tasks before build
+                if (runTasks("Run Tasks Before Build", "beforeBuildTasks", tasksEnv, true) != CODE_DONE)
+                {
+                    throw new Exception("Run Tasks Failed !, Stop Build !");
+                }
 
                 foreach (var cFile in cList)
                 {
@@ -877,12 +903,8 @@ namespace ARM_Builder_V6
                 log(" > LIB Files: " + libList.Count.ToString());
                 log("\r\n > Source File Totals: " + (cCount + cppCount + asmCount).ToString());
 
-                // Check Compiler Tools
-                foreach (var tool in toolPaths)
-                {
-                    if (!File.Exists(tool.Value))
-                        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
-                }
+                // switch work directory
+                changeWorkDir(binDir);
 
                 log("\r\n");
                 infoWithLable("-------------------- Start compilation... --------------------\r\n");
@@ -892,7 +914,7 @@ namespace ARM_Builder_V6
                     foreach (var cmdInfo in commands.Values)
                     {
                         log(" > Compile... " + Path.GetFileName(cmdInfo.sourcePath));
-                        if (system("\"" + quotePath(cmdInfo.exePath) + " " + cmdInfo.commandLine + "\"") != CODE_DONE)
+                        if (system(cmdInfo.exePath + " " + cmdInfo.commandLine) != CODE_DONE)
                         {
                             throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\"");
                         }
@@ -924,7 +946,7 @@ namespace ARM_Builder_V6
                     log("");
                 }
 
-                if (system("\"" + quotePath(linkInfo.exePath) + " " + linkInfo.commandLine + "\"") != CODE_DONE)
+                if (system(linkInfo.exePath + " " + linkInfo.commandLine) != CODE_DONE)
                 {
                     throw new Exception("Link failed !");
                 }
@@ -962,7 +984,7 @@ namespace ARM_Builder_V6
                         throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
                             + " !, [path] : \"" + outputInfo.exePath + "\"");
 
-                    if (system("\"" + quotePath(outputInfo.exePath) + " " + outputInfo.commandLine + "\"") != CODE_DONE)
+                    if (system(outputInfo.exePath + " " + outputInfo.commandLine) != CODE_DONE)
                         throw new Exception("Output hex failed !");
 
                     log("");
@@ -973,17 +995,21 @@ namespace ARM_Builder_V6
                     warn("Output Hex file failed !, msg: " + err.Message);
                 }
 
+                resetWorkDir();
+
                 // flush to database
                 updateDatabase(commands.Keys);
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
-                log("");
+                log("\r\n");
                 doneWithLable("-------------------- Build successfully ! Elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
                     + " --------------------\r\n");
             }
             catch (Exception err)
             {
+                resetWorkDir();
+
                 log("");
                 errorWithLable(err.Message + "\r\n");
                 errorWithLable("Build failed !");
@@ -1016,16 +1042,21 @@ namespace ARM_Builder_V6
 
         //============================================
 
+        static void changeWorkDir(string path)
+        {
+            Environment.CurrentDirectory = path;
+        }
+
+        static void resetWorkDir()
+        {
+            Environment.CurrentDirectory = prevWorkDir;
+        }
+
         struct TaskData
         {
             public ManualResetEvent _event;
             public int index;
             public int end;
-        }
-
-        static string quotePath(string path)
-        {
-            return path.Contains(" ") ? ("\"" + path + "\"") : path;
         }
 
         static void compileByMulThread(int thrNum, CmdGenerator.CmdInfo[] cmds, List<string> doneList)
@@ -1051,7 +1082,7 @@ namespace ARM_Builder_V6
                         }
 
                         log(" > Compile... " + Path.GetFileName(cmds[index].sourcePath));
-                        if (system("\"" + quotePath(cmds[index].exePath) + " " + cmds[index].commandLine + "\"") != CODE_DONE)
+                        if (system(cmds[index].exePath + " " + cmds[index].commandLine) != CODE_DONE)
                         {
                             err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\"");
                             break;

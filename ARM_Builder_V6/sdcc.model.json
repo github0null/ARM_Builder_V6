@@ -170,7 +170,6 @@
             "$default": [
                 "-c",
                 "--debug",
-                "--vc",
                 "--fsigned-char"
             ],
             "$language-c": {
@@ -207,7 +206,6 @@
             "$default": [
                 "-c",
                 "--debug",
-                "--vc",
                 "--fsigned-char"
             ]
         },
