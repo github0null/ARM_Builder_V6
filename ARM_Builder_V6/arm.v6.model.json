@@ -1,6 +1,8 @@
 {
     "name": "ARMCC V6",
-    "toolchain": "AC6",
+    "defines": [
+        "__UVISION_VERSION=526"
+    ],
     "global": {
         "microcontroller-cpu": {
             "type": "keyValue",
@@ -71,12 +73,19 @@
     },
     "groups": {
         "c/cpp": {
-            "$path": "ARMCLANG\\Bin\\ArmClang.exe",
-            "$includeHead": "-I",
-            "$defineHead": "-D",
-            "$output": "-o ",
-            "$invokeCmd": "@",
-            "$fileCmd": "-MD ",
+            "$path": "ARMCLANG\\bin\\armclang.exe",
+            "$encoding": "UTF8",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$output": "-o ${out} -MD ${in}",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
             "$default": [
                 "--target=arm-arm-none-eabi",
                 "-c",
@@ -228,11 +237,18 @@
             }
         },
         "asm": {
-            "$path": "ARMCLANG\\Bin\\armasm.exe",
-            "$includeHead": "-I",
-            "$defineHead": "--pd ",
-            "$output": "--xref -o ",
-            "$invokeCmd": "--Via ",
+            "$path": "ARMCLANG\\bin\\armasm.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "--pd \"${key} SETA ${value}\""
+            },
+            "$output": "--xref -o ${out} ${in}",
+            "$invoke": {
+                "useFile": true,
+                "body": "--Via ${value}"
+            },
             "$default": [
                 "-g"
             ],
@@ -261,11 +277,19 @@
             }
         },
         "asm-clang": {
-            "$path": "ARMCLANG\\Bin\\ArmClang.exe",
-            "$includeHead": "-I",
-            "$defineHead": "-D",
-            "$output": "-o ",
-            "$invokeCmd": "@",
+            "$path": "ARMCLANG\\bin\\armclang.exe",
+            "$encoding": "UTF8",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$output": "-o ${out} ${in}",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
             "$default": [
                 "-x assembler-with-cpp",
                 "-c",
@@ -296,18 +320,23 @@
             }
         },
         "linker": {
-            "$path": "ARMCLANG\\Bin\\armlink.exe",
-            "$default": [],
-            "$invokeCmd": "--Via ",
-            "$output": "-o ",
+            "$path": "ARMCLANG\\bin\\armlink.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "--Via ${value}"
+            },
+            "$output": "${in} -o ${out}",
             "$default-tail": [
                 "--strict",
                 "--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols",
                 "--info sizes --info totals --info unused --info veneers"
             ],
-            "$link-map": {
+            "$matcher": [
+                "^\\s*total.*size"
+            ],
+            "$linkMap": {
                 "type": "value",
-                "command": "--list ",
+                "command": "--list ${mapPath}",
                 "description": ""
             },
             "use-microLIB": {
@@ -338,6 +367,11 @@
                 "command": "--scatter ",
                 "description": ""
             }
+        },
+        "output": {
+            "$path": "ARMCLANG\\bin\\fromelf.exe",
+            "$outputSuffix": ".hex",
+            "command": "--i32combined ${linkerOutput} --output ${output}"
         }
     }
 }

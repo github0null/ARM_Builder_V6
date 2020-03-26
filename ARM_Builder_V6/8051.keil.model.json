@@ -1,0 +1,117 @@
+{
+    "name": "Keil 8051",
+    "defines": [
+        "__UVISION_VERSION=526"
+    ],
+    "global": {
+        "misc-controls": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "c/cpp",
+                "asm",
+                "linker"
+            ],
+            "description": ""
+        }
+    },
+    "groups": {
+        "c/cpp": {
+            "$path": "BIN\\C51.exe",
+            "$includes": {
+                "prefix": "INCDIR(",
+                "body": "${value}",
+                "sep": ";",
+                "noQuotes": true,
+                "suffix": ")"
+            },
+            "$defines": {
+                "prefix": "DEFINE(",
+                "body": "${key}",
+                "sep": ",",
+                "suffix": ")"
+            },
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "OBJECT(${out})",
+            "$default": [
+                "OMF2",
+                "TABS (2)"
+            ],
+            "optimization": {
+                "type": "value",
+                "command": "",
+                "prefix": "OPTIMIZE (",
+                "suffix": ")",
+                "description": ""
+            },
+            "ram-mode": {
+                "type": "selectable",
+                "command": {
+                    "SMALL": "SMALL",
+                    "COMPACT": "COMPACT",
+                    "LARGE": "LARGE",
+                    "false": "LARGE"
+                },
+                "description": ""
+            },
+            "rom-mode": {
+                "type": "selectable",
+                "command": {
+                    "SMALL": "SMALL",
+                    "COMPACT": "COMPACT",
+                    "LARGE": "LARGE",
+                    "false": "LARGE"
+                },
+                "prefix": "ROM (",
+                "suffix": ")",
+                "description": ""
+            }
+        },
+        "asm": {
+            "$path": "BIN\\AX51.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "OBJECT(${out}) EP",
+            "ram-mode": {
+                "type": "selectable",
+                "prefix": "SET (",
+                "suffix": ")",
+                "command": {
+                    "SMALL": "SMALL",
+                    "COMPACT": "COMPACT",
+                    "LARGE": "LARGE",
+                    "false": "LARGE"
+                },
+                "description": ""
+            }
+        },
+        "linker": {
+            "$path": "BIN\\LX51.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "${in} TO ${out}",
+            "$outputSuffix": "",
+            "$objPathSep": ",",
+            "$commandLocation": "end",
+            "$matcher": [],
+            "$linkMap": {
+                "type": "value",
+                "prefix": "PRINT (",
+                "command": "${mapPath}",
+                "suffix": ")",
+                "description": ""
+            }
+        },
+        "output": {
+            "$path": "BIN\\Ohx51.exe",
+            "command": "${linkerOutput} HEX"
+        }
+    }
+}

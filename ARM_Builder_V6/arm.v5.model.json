@@ -1,6 +1,8 @@
 {
     "name": "ARMCC V5",
-    "toolchain": "AC5",
+    "defines": [
+        "__UVISION_VERSION=526"
+    ],
     "global": {
         "misc-controls": {
             "type": "list",
@@ -83,12 +85,18 @@
     },
     "groups": {
         "c/cpp": {
-            "$path": "ARMCC\\Bin\\armcc.exe",
-            "$includeHead": "-I",
-            "$defineHead": "-D",
-            "$output": "-o ",
-            "$invokeCmd": "--Via ",
-            "$fileCmd": "",
+            "$path": "ARMCC\\bin\\armcc.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$invoke": {
+                "useFile": true,
+                "body": "--Via ${value}"
+            },
+            "$output": "-o ${out} ${in}",
             "$default": [
                 "-c",
                 "-g",
@@ -199,11 +207,18 @@
             }
         },
         "asm": {
-            "$path": "ARMCC\\Bin\\armasm.exe",
-            "$includeHead": "-I",
-            "$defineHead": "--pd ",
-            "$output": "--xref -o ",
-            "$invokeCmd": "--Via ",
+            "$path": "ARMCC\\bin\\armasm.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "--pd \"${key} SETA ${value}\""
+            },
+            "$invoke": {
+                "useFile": true,
+                "body": "--Via ${value}"
+            },
+            "$output": "--xref -o ${out} ${in}",
             "$default": [
                 "-g",
                 "--apcs=interwork"
@@ -234,18 +249,23 @@
             }
         },
         "linker": {
-            "$path": "ARMCC\\Bin\\armlink.exe",
-            "$default": [],
-            "$invokeCmd": "--Via ",
-            "$output": "-o ",
+            "$path": "ARMCC\\bin\\armlink.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "--Via ${value}"
+            },
+            "$output": "${in} -o ${out}",
             "$default-tail": [
                 "--strict",
                 "--summary_stderr --info summarysizes --map --xref --callgraph --symbols",
                 "--info sizes --info totals --info unused --info veneers"
             ],
-            "$link-map": {
+            "$matcher": [
+                "^\\s*total.*size"
+            ],
+            "$linkMap": {
                 "type": "value",
-                "command": "--list ",
+                "command": "--list ${mapPath}",
                 "description": ""
             },
             "use-microLIB": {
@@ -285,6 +305,11 @@
                 "command": "--scatter ",
                 "description": ""
             }
+        },
+        "output": {
+            "$path": "ARMCC\\bin\\fromelf.exe",
+            "$outputSuffix": ".hex",
+            "command": "--i32combined ${linkerOutput} --output ${output}"
         }
     }
 }

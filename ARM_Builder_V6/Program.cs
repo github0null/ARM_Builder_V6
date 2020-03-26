@@ -31,23 +31,37 @@ namespace ARM_Builder_V6
 
         public delegate void CmdVisitor(string key, string cmdLine);
 
-        enum ToolChain
+        class CmdFormat
         {
-            AC5,
-            AC6,
-            None
-        }
+            public string prefix = "";
+            public string body = null;
+            public string suffix = "";
+            public string sep = " ";
+            public bool noQuotes = false;
+        };
+
+        class InvokeFormat
+        {
+            public bool useFile = false;
+            public string body = null;
+        };
 
         //-----------------------------------------------------------
 
         public static readonly string optionKey = "options";
+        public static readonly string[] formatKeyList = {
+            "$includes", "$defines"
+        };
 
-        private readonly Encoding encoding;
-        private readonly Encoding asmEncoding;
+        private readonly Dictionary<string, Encoding> encodings = new Dictionary<string, Encoding>();
 
-        private readonly Dictionary<string, string> cmdLines = new Dictionary<string, string>();
+        private readonly Dictionary<string, string[]> cmdLists = new Dictionary<string, string[]>();
         private readonly Dictionary<string, JObject> paramObj = new Dictionary<string, JObject>();
         private readonly Dictionary<string, JObject> models = new Dictionary<string, JObject>();
+
+        private readonly Dictionary<string, Dictionary<string, CmdFormat>> formats =
+            new Dictionary<string, Dictionary<string, CmdFormat>>();
+        private readonly Dictionary<string, InvokeFormat> invokeFormats = new Dictionary<string, InvokeFormat>();
 
         private readonly string cCompilerName;
         private readonly string asmCompilerName;
@@ -58,31 +72,14 @@ namespace ARM_Builder_V6
         private readonly JObject model;
         private readonly JObject parameters;
 
-        private readonly ToolChain toolchain;
         private readonly Dictionary<string, int> objNameMap = new Dictionary<string, int>();
 
         public CmdGenerator(JObject cModel, JObject cParams, string bindir, string outpath)
         {
-            toolchain = cModel["toolchain"].Value<string>() == "AC5" ? ToolChain.AC5 : ToolChain.AC6;
-
-            if (toolchain == ToolChain.AC5)
-            {
-                encoding = Encoding.Default;
-            }
-            else
-            {
-                encoding = new UTF8Encoding(false);
-            }
-
             model = cModel;
             parameters = cParams;
             outDir = outpath;
             binDir = bindir;
-
-            cmdLines.Add("c", "");
-            cmdLines.Add("cpp", "");
-            cmdLines.Add("asm", "");
-            cmdLines.Add("linker", "");
 
             var compileOptions = (JObject)cParams[optionKey];
 
@@ -96,25 +93,47 @@ namespace ARM_Builder_V6
             asmCompilerName = paramObj["asm"].ContainsKey("$use") ? paramObj["asm"]["$use"].Value<string>() : "asm";
             linkerName = paramObj["linker"].ContainsKey("$use") ? paramObj["linker"]["$use"].Value<string>() : "linker";
 
-            if (asmCompilerName == "asm")
-            {
-                asmEncoding = Encoding.Default;
-            }
-            else
-            {
-                asmEncoding = new UTF8Encoding(false);
-            }
-
             if (!((JObject)cModel["groups"]).ContainsKey(cCompilerName))
-                throw new Exception("无效的 '$use' 选项!，检查编译配置 'c/cpp-compiler.$use' 是否正确");
+                throw new Exception("Invalid '$use' option!，please check compile option 'c/cpp-compiler.$use'");
 
             if (!((JObject)cModel["groups"]).ContainsKey(asmCompilerName))
-                throw new Exception("无效的 '$use' 选项!，检查编译配置 'asm-compiler.$use' 是否正确");
+                throw new Exception("Invalid '$use' option!，please check compile option 'asm-compiler.$use'");
 
             models.Add("c", (JObject)cModel["groups"][cCompilerName]);
             models.Add("cpp", (JObject)cModel["groups"][cCompilerName]);
             models.Add("asm", (JObject)cModel["groups"][asmCompilerName]);
             models.Add("linker", (JObject)cModel["groups"]["linker"]);
+
+            // set encodings
+            foreach (string modelName in models.Keys)
+            {
+                if (models[modelName].ContainsKey("$encoding"))
+                {
+                    encodings.Add(modelName, getEncoding(models[modelName]["$encoding"].Value<string>()));
+                }
+                else
+                {
+                    encodings.Add(modelName, Encoding.Default);
+                }
+            }
+
+            // set include, define commands format
+            foreach (string modelName in models.Keys)
+            {
+                JObject modelParams = models[modelName];
+
+                Dictionary<string, CmdFormat> properties = new Dictionary<string, CmdFormat>();
+                foreach (string key in formatKeyList)
+                {
+                    if (modelParams.ContainsKey(key))
+                    {
+                        properties.Add(key, modelParams[key].ToObject<CmdFormat>());
+                    }
+                }
+                formats.Add(modelName, properties);
+
+                invokeFormats.Add(modelName, modelParams["$invoke"].ToObject<InvokeFormat>());
+            }
 
             // init command line from model
             JObject globalParams = paramObj["global"];
@@ -122,19 +141,23 @@ namespace ARM_Builder_V6
             // set outName to unique
             getUniqueName(getOutName());
 
+            // set stable command line
             foreach (var model in models)
             {
                 string name = model.Key;
                 JObject cmpModel = model.Value;
-                string cmdLine = cmdLines[name];
+                List<string> commandList = new List<string>();
 
                 JObject[] cmpParams = {
                     globalParams,
                     paramObj[name]
                 };
 
-                foreach (var ele in ((JArray)cmpModel["$default"]).Values<string>())
-                    cmdLine += " " + ele;
+                if (cmpModel.ContainsKey("$default"))
+                {
+                    foreach (var ele in ((JArray)cmpModel["$default"]).Values<string>())
+                        commandList.Add(ele);
+                }
 
                 foreach (var ele in cmpModel)
                 {
@@ -156,6 +179,10 @@ namespace ARM_Builder_V6
                                         case JTokenType.Boolean:
                                             paramsValue = param[ele.Key].Value<bool>() ? "true" : "false";
                                             break;
+                                        case JTokenType.Integer:
+                                        case JTokenType.Float:
+                                            paramsValue = param[ele.Key].Value<object>().ToString();
+                                            break;
                                         case JTokenType.Array:
                                             paramsValue = param[ele.Key].Values<string>();
                                             break;
@@ -167,15 +194,17 @@ namespace ARM_Builder_V6
 
                             try
                             {
-                                cmdLine += getCommandValue((JObject)ele.Value, paramsValue);
+                                string cmd = getCommandValue((JObject)ele.Value, paramsValue).Trim();
+                                if (!string.IsNullOrEmpty(cmd))
+                                {
+                                    commandList.Add(cmd);
+                                }
                             }
                             catch (TypeErrorException err)
                             {
                                 throw new TypeErrorException("The type of key '" + ele.Key + "' is '" + err.Message
                                     + "' but you gived '" + paramsValue.GetType().Name + "'");
                             }
-
-                            cmdLine = cmdLine.TrimEnd();
                         }
                     }
                     catch (TypeErrorException err)
@@ -189,24 +218,266 @@ namespace ARM_Builder_V6
                 }
 
                 // set include path and defines
-                switch (name)
+                if (name != "linker")
                 {
-                    case "linker":
-                        break;
-                    default:
-                        cmdLine += "\r\n" + getIncludesCmdLine(cmpModel, ((JArray)cParams["incDirs"]).Values<string>());
-                        cmdLine += "\r\n" + getdefinesCmdLine(cmpModel, name, ((JArray)cParams["defines"]).Values<string>());
-                        break;
+                    string[] additionList = new string[] {
+                        getIncludesCmdLine(name, ((JArray)cParams["incDirs"]).Values<string>()),
+                        getdefinesCmdLine(name, ((JArray)cParams["defines"]).Values<string>())
+                    };
+
+                    foreach (string command in additionList)
+                    {
+                        if (!string.IsNullOrEmpty(command))
+                        {
+                            commandList.Add(command);
+                        }
+                    }
                 }
 
                 if (cmpModel.ContainsKey("$default-tail"))
                 {
                     foreach (var ele in ((JArray)cmpModel["$default-tail"]).Values<string>())
-                        cmdLine += " " + ele;
+                        commandList.Add(ele);
                 }
 
-                cmdLines[name] = cmdLine;
+                cmdLists.Add(name, commandList.ToArray());
             }
+        }
+
+        public CmdInfo fromCFile(string fpath)
+        {
+            return fromModel("c", "language-c", fpath);
+        }
+
+        public CmdInfo fromCppFile(string fpath)
+        {
+            return fromModel("cpp", "language-cpp", fpath);
+        }
+
+        public CmdInfo fromAsmFile(string fpath)
+        {
+            return fromModel("asm", null, fpath);
+        }
+
+        public CmdInfo genLinkCommand(List<string> objList, out List<string> mapMatcher)
+        {
+            JObject linkerModel = models["linker"];
+            JObject linkerParams = paramObj["linker"];
+            InvokeFormat iFormat = invokeFormats["linker"];
+            string sep = iFormat.useFile ? "\r\n" : " ";
+
+            string outSuffix = linkerModel.ContainsKey("$outputSuffix")
+                ? linkerModel["$outputSuffix"].Value<string>() : ".axf";
+
+            string mapSuffix = linkerModel.ContainsKey("$mapSuffix")
+                ? linkerModel["$mapSuffix"].Value<string>() : ".map";
+
+            string cmdLocation = linkerModel.ContainsKey("$commandLocation")
+                ? linkerModel["$commandLocation"].Value<string>() : "start";
+
+            string objSep = linkerModel.ContainsKey("$objPathSep")
+                ? linkerModel["$objPathSep"].Value<string>() : "\r\n";
+
+            bool mainFirst = linkerModel.ContainsKey("$mainFirst")
+                ? linkerModel["$mainFirst"].Value<bool>() : false;
+
+            mapMatcher = linkerModel.ContainsKey("$matcher")
+                ? new List<string>(linkerModel["$matcher"].Values<string>()) : new List<string>();
+
+            string outName = getOutName();
+            string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
+            string stableCommand = string.Join(" ", cmdLists["linker"]);
+            string cmdLine = "";
+
+            switch (cmdLocation)
+            {
+                case "start":
+                    cmdLine = stableCommand;
+                    break;
+                default:
+                    break;
+            }
+
+            if (mainFirst)
+            {
+                string mainName = linkerParams.ContainsKey("$mainFileName")
+                    ? linkerParams["$mainFileName"].Value<string>() : "main";
+
+                int index = objList.FindIndex((string fName) =>
+                {
+                    return Path.GetFileNameWithoutExtension(fName).Equals(mainName);
+                });
+
+                if (index != -1)
+                {
+                    string name = objList[index];
+                    objList.RemoveAt(index);
+                    objList.Insert(0, name);
+                }
+                else
+                {
+                    throw new Exception("Not found '"
+                        + mainName + ".rel' file in output list, the '"
+                        + mainName + ".rel' file must be the first linker file !");
+                }
+            }
+
+            for (int i = 0; i < objList.Count; i++)
+            {
+                objList[i] = toQuotingPath(objList[i]);
+            }
+
+            cmdLine += sep + linkerModel["$output"].Value<string>()
+                .Replace("${out}", toQuotingPath(outPath))
+                .Replace("${in}", string.Join(objSep, objList.ToArray()));
+
+            string mapPath = outDir + Path.DirectorySeparatorChar + outName + mapSuffix;
+            if (linkerModel.ContainsKey("$linkMap"))
+            {
+                cmdLine += sep + getCommandValue((JObject)linkerModel["$linkMap"], "")
+                    .Replace("${mapPath}", toQuotingPath(mapPath));
+            }
+
+            switch (cmdLocation)
+            {
+                case "end":
+                    cmdLine += " " + stableCommand;
+                    break;
+                default:
+                    break;
+            }
+
+            string commandLine = null;
+            if (iFormat.useFile)
+            {
+                FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + outName + ".lnp");
+                File.WriteAllText(paramFile.FullName, cmdLine, encodings["linker"]);
+                commandLine = iFormat.body.Replace("${value}", "\"" + paramFile.FullName + "\"");
+            }
+            else
+            {
+                commandLine = cmdLine;
+            }
+
+            return new CmdInfo
+            {
+                exePath = binDir + Path.DirectorySeparatorChar + linkerModel["$path"].Value<string>(),
+                commandLine = commandLine,
+                sourcePath = mapPath,
+                outPath = outPath
+            };
+        }
+
+        public CmdInfo genOutputCommand(string linkerOutputFile)
+        {
+            JObject outputModel = (JObject)model["groups"]["output"];
+            string hexpath = outDir + Path.DirectorySeparatorChar + getOutName();
+
+            if (outputModel.ContainsKey("$outputSuffix"))
+            {
+                hexpath += outputModel["$outputSuffix"].Value<string>();
+            }
+            else
+            {
+                hexpath += ".hex";
+            }
+
+            string command = outputModel["command"].Value<string>()
+                .Replace("${linkerOutput}", toQuotingPath(linkerOutputFile))
+                .Replace("${output}", toQuotingPath(hexpath));
+
+            return new CmdInfo
+            {
+                exePath = binDir + Path.DirectorySeparatorChar + outputModel["$path"].Value<string>(),
+                commandLine = command,
+                sourcePath = linkerOutputFile,
+                outPath = hexpath
+            };
+        }
+
+        public string getOutName()
+        {
+            return parameters.ContainsKey("name") ? parameters["name"].Value<string>() : "main";
+        }
+
+        public string getToolPath(string name)
+        {
+            return binDir + Path.DirectorySeparatorChar + models[name]["$path"].Value<string>();
+        }
+
+        public void traverseCommands(CmdVisitor visitor)
+        {
+            foreach (var item in cmdLists)
+                visitor(item.Key, string.Join(" ", item.Value));
+        }
+
+        public string getModelName()
+        {
+            return model.ContainsKey("name") ? model["name"].Value<string>() : "null";
+        }
+
+        //------------
+
+        private CmdInfo fromModel(string modelName, string langName, string fpath)
+        {
+            JObject cModel = models[modelName];
+            JObject cParams = paramObj[modelName];
+            InvokeFormat iFormat = invokeFormats[modelName];
+
+            string outputSuffix = cModel.ContainsKey("$outputSuffix")
+                ? cModel["$outputSuffix"].Value<string>() : ".o";
+
+            string paramsSuffix = modelName == "asm" ? "._ia" : ".__i";
+            string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
+            string outPath = outDir + Path.DirectorySeparatorChar + fName + outputSuffix;
+            string langOption = null;
+
+            List<string> commands = new List<string>();
+
+            if (langName != null && cParams.ContainsKey(langName) && cModel.ContainsKey("$" + langName))
+            {
+                langOption = cParams[langName].Value<string>();
+                commands.Add(getCommandValue((JObject)cModel["$" + langName], langOption));
+            }
+
+            string outputFormat = cModel["$output"].Value<string>();
+            if (outputFormat.Contains("${in}"))
+            {
+                commands.AddRange(cmdLists[modelName]);
+                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath))
+                    .Replace("${in}", toQuotingPath(fpath)));
+            }
+            else
+            {
+                commands.Insert(0, toQuotingPath(fpath));
+                commands.AddRange(cmdLists[modelName]);
+                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath)));
+            }
+
+            string commandLine = null;
+            if (iFormat.useFile)
+            {
+                FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + paramsSuffix);
+                File.WriteAllText(paramFile.FullName, string.Join(" ", commands.ToArray()), encodings[modelName]);
+                commandLine = iFormat.body.Replace("${value}", "\"" + paramFile.FullName + "\"");
+            }
+            else
+            {
+                commandLine = string.Join(" ", commands.ToArray());
+            }
+
+            return new CmdInfo
+            {
+                exePath = binDir + Path.DirectorySeparatorChar + cModel["$path"].Value<string>(),
+                commandLine = commandLine,
+                sourcePath = fpath,
+                outPath = outPath
+            };
+        }
+
+        private string toQuotingPath(string path, bool quote = true)
+        {
+            return (quote && path.Contains(" ")) ? ("\"" + path + "\"") : path;
         }
 
         private string getUniqueName(string expectedName)
@@ -224,139 +495,17 @@ namespace ARM_Builder_V6
             }
         }
 
-        public CmdInfo fromCFile(string fpath)
+        private Encoding getEncoding(string name)
         {
-            JObject ccModel = models["c"];
-            JObject cParams = paramObj["c"];
-
-            string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
-            string outPath = outDir + Path.DirectorySeparatorChar + fName + ".o";
-
-            string langOption = cParams.ContainsKey("language-c") ? cParams["language-c"].Value<string>() : null;
-            string fileCmd = ccModel.ContainsKey("$fileCmd") ? ccModel["$fileCmd"].Value<string>() : null;
-            string cmdLine = getCommandValue((JObject)ccModel["$language-c"], langOption).TrimStart()
-                + cmdLines["c"] + " " + ccModel["$output"].Value<string>() + "\"" + outPath.Replace('\\', '/') + "\""
-                + " " + (fileCmd ?? "") + "\"" + fpath.Replace('\\', '/') + "\"";
-
-            if (toolchain == ToolChain.AC5)
+            switch (name.ToLower())
             {
-                string depPath = outDir + "/" + fName + ".v5.d";
-                cmdLine += " --depend \"" + depPath.Replace('\\', '/') + "\"";
+                case "utf8":
+                    return Encoding.UTF8;
+                case "utf16":
+                    return Encoding.Unicode;
+                default:
+                    return Encoding.Default;
             }
-
-            FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + ".__i");
-            File.WriteAllText(paramFile.FullName, cmdLine, encoding);
-
-            return new CmdInfo
-            {
-                commandLine = ccModel["$invokeCmd"].Value<string>() + "\"" + paramFile.FullName + "\"",
-                exePath = binDir + Path.DirectorySeparatorChar + ccModel["$path"].Value<string>(),
-                sourcePath = fpath,
-                outPath = outPath
-            };
-        }
-
-        public CmdInfo fromCppFile(string fpath)
-        {
-            JObject cppModel = models["cpp"];
-            JObject cppParams = paramObj["cpp"];
-
-            string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
-            string outPath = outDir + Path.DirectorySeparatorChar + fName + ".o";
-
-            string langOption = cppParams.ContainsKey("language-cpp") ? cppParams["language-cpp"].Value<string>() : null;
-            string fileCmd = cppModel.ContainsKey("$fileCmd") ? cppModel["$fileCmd"].Value<string>() : null;
-            string cmdLine = getCommandValue((JObject)cppModel["$language-cpp"], langOption).TrimStart()
-                + cmdLines["cpp"] + " " + cppModel["$output"].Value<string>() + "\"" + outPath.Replace('\\', '/') + "\""
-                + " " + (fileCmd ?? "") + "\"" + fpath.Replace('\\', '/') + "\"";
-
-            if (toolchain == ToolChain.AC5)
-            {
-                string depPath = outDir + "/" + fName + ".v5.d";
-                cmdLine += " --depend \"" + depPath.Replace('\\', '/') + "\"";
-            }
-
-            FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + ".__i");
-            File.WriteAllText(paramFile.FullName, cmdLine, encoding);
-
-            return new CmdInfo
-            {
-                commandLine = cppModel["$invokeCmd"].Value<string>() + "\"" + paramFile.FullName + "\"",
-                exePath = binDir + Path.DirectorySeparatorChar + cppModel["$path"].Value<string>(),
-                sourcePath = fpath,
-                outPath = outPath
-            };
-        }
-
-        public CmdInfo fromAsmFile(string fpath)
-        {
-            JObject asmModel = models["asm"];
-
-            string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
-            string outPath = outDir + Path.DirectorySeparatorChar + fName + ".o";
-
-            string fileCmd = asmModel.ContainsKey("$fileCmd") ? asmModel["$fileCmd"].Value<string>() : null;
-            string cmdLine = cmdLines["asm"].TrimStart() + " " + asmModel["$output"].Value<string>() + "\"" + outPath.Replace('\\', '/') + "\""
-                + " " + (fileCmd ?? "") + "\"" + fpath.Replace('\\', '/') + "\"";
-
-            if (toolchain == ToolChain.AC5)
-            {
-                string depPath = outDir + "/" + fName + ".v5.d";
-                cmdLine += " --depend \"" + depPath.Replace('\\', '/') + "\"";
-            }
-
-            FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + "._ia");
-            File.WriteAllText(paramFile.FullName, cmdLine, asmEncoding);
-
-            return new CmdInfo
-            {
-                commandLine = asmModel["$invokeCmd"].Value<string>() + "\"" + paramFile.FullName + "\"",
-                exePath = binDir + Path.DirectorySeparatorChar + asmModel["$path"].Value<string>(),
-                sourcePath = fpath,
-                outPath = outPath
-            };
-        }
-
-        public CmdInfo genLinkCommand(string[] objList)
-        {
-            JObject linkerModel = models["linker"];
-
-            string outName = getOutName();
-            string outPath = outDir + Path.DirectorySeparatorChar + outName + ".axf";
-            string mapPath = outDir + Path.DirectorySeparatorChar + outName + ".map";
-
-            string cmdLine = cmdLines["linker"].TrimStart() + "\r\n";
-            foreach (var objPath in objList)
-                cmdLine += "\"" + objPath.Replace('\\', '/') + "\"\r\n";
-            cmdLine += linkerModel["$link-map"]["command"].Value<string>() + "\"" + mapPath.Replace('\\', '/') + "\"\r\n";
-            cmdLine += linkerModel["$output"].Value<string>() + "\"" + outPath.Replace('\\', '/') + "\"";
-
-            FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + outName + ".lnp");
-            File.WriteAllText(paramFile.FullName, cmdLine, Encoding.Default);
-
-            return new CmdInfo
-            {
-                exePath = binDir + Path.DirectorySeparatorChar + linkerModel["$path"].Value<string>(),
-                commandLine = linkerModel["$invokeCmd"].Value<string>() + "\"" + paramFile.FullName + "\"",
-                sourcePath = mapPath,
-                outPath = outPath
-            };
-        }
-
-        public string getOutName()
-        {
-            return parameters.ContainsKey("name") ? parameters["name"].Value<string>() : "main";
-        }
-
-        public string getToolPath(string name)
-        {
-            return binDir + Path.DirectorySeparatorChar + models[name]["$path"].Value<string>();
-        }
-
-        public void traverseCommands(CmdVisitor visitor)
-        {
-            foreach (var item in cmdLines)
-                visitor(item.Key, item.Value);
         }
 
         private string getCommandValue(JObject option, object value)
@@ -367,7 +516,6 @@ namespace ARM_Builder_V6
             }
 
             string type = option["type"].Value<string>();
-
             switch (type)
             {
                 case "list":
@@ -384,76 +532,140 @@ namespace ARM_Builder_V6
                     break;
             }
 
+            string prefix = null;
+            string suffix = null;
+
+            if (option.ContainsKey("prefix"))
+            {
+                prefix = option["prefix"].Value<string>();
+            }
+            else
+            {
+                prefix = "";
+            }
+
+            if (option.ContainsKey("suffix"))
+            {
+                suffix = option["suffix"].Value<string>();
+            }
+            else
+            {
+                suffix = "";
+            }
+
+            string command = "";
             switch (type)
             {
                 case "selectable":
                     if (value != null && ((JObject)option["command"]).ContainsKey((string)value))
                     {
-                        return " " + option["command"][value].Value<string>();
+                        command = option["command"][value].Value<string>();
                     }
                     else
                     {
-                        return " " + option["command"]["false"].Value<string>();
+                        command = option["command"]["false"].Value<string>();
                     }
+                    break;
                 case "keyValue":
                     if (value != null && ((JObject)option["enum"]).ContainsKey((string)value))
                     {
-                        return " " + option["command"].Value<string>() + option["enum"][value].Value<string>();
+                        command = option["command"].Value<string>() + option["enum"][value].Value<string>();
                     }
                     else
                     {
-                        return " " + option["command"].Value<string>() + option["enum"]["default"].Value<string>();
+                        command = option["command"].Value<string>() + option["enum"]["default"].Value<string>();
                     }
+                    break;
                 case "value":
-                    return " " + option["command"].Value<string>() + ((string)value ?? "").Replace('\\', '/');
+                    command = option["command"].Value<string>() + (string)value ?? "";
+                    break;
                 case "list":
-                    string res = option["command"].Value<string>();
+                    List<string> cmds = new List<string>() { option["command"].Value<string>() };
+
                     foreach (var item in (IEnumerable<string>)value)
                     {
-                        res += " " + item.Replace('\\', '/');
+                        cmds.Add(item);
                     }
-                    return " " + res.TrimStart();
+
+                    command = string.Join(" ", cmds.ToArray());
+                    break;
                 default:
-                    return "";
+                    break;
             }
+
+            return prefix + command + suffix;
         }
 
-        private string getIncludesCmdLine(JObject cmpModel, IEnumerable<string> incList)
+        private string getIncludesCmdLine(string modelName, IEnumerable<string> incList)
         {
-            string cmdLine = "";
-            foreach (var inculdePath in incList)
+            if (!formats[modelName].ContainsKey("$includes"))
             {
-                cmdLine += " " + cmpModel["$includeHead"].Value<string>();
-                cmdLine += "\"" + inculdePath.Replace('\\', '/') + "\"";
+                return "";
             }
-            return cmdLine.TrimStart();
+
+            List<string> cmds = new List<string>();
+            JObject cmpModel = models[modelName];
+            CmdFormat incFormat = formats[modelName]["$includes"];
+
+            if (incFormat.noQuotes)
+            {
+                foreach (var inculdePath in incList)
+                {
+                    cmds.Add(incFormat.body.Replace("${value}", inculdePath));
+                }
+            }
+            else
+            {
+                foreach (var inculdePath in incList)
+                {
+                    cmds.Add(incFormat.body.Replace("${value}", toQuotingPath(inculdePath)));
+                }
+            }
+
+            return incFormat.prefix + string.Join(incFormat.sep, cmds.ToArray()) + incFormat.suffix;
         }
 
-        private string getdefinesCmdLine(JObject cmpModel, string modelName, IEnumerable<string> defList)
+        private string getdefinesCmdLine(string modelName, IEnumerable<string> defList)
         {
-            string cmdLine = "";
+            if (!formats[modelName].ContainsKey("$defines"))
+            {
+                return "";
+            }
+
+            List<string> cmds = new List<string>();
+            JObject cmpModel = models[modelName];
+            CmdFormat defFormat = formats[modelName]["$defines"];
+
             foreach (var define in defList)
             {
-                cmdLine += " " + cmpModel["$defineHead"].Value<string>();
-                if (modelName == "asm" && asmCompilerName == "asm")
+                string macro = null;
+                string value = null;
+
+                int index = define.IndexOf('=');
+                if (index >= 0)
                 {
-                    if (Regex.IsMatch(define, @".+=.+"))
-                    {
-                        cmdLine += "\""
-                            + Regex.Replace(Regex.Replace(define, "(?<==)\\s*\"\\s*(?<val>.[^\"]*)\\s*\"\\s*$", "${val}"), @"=", " SETA ")
-                            + "\"";
-                    }
-                    else
-                    {
-                        cmdLine += "\"" + define + " SETA 1\"";
-                    }
+                    macro = define.Substring(0, index).Trim();
+                    value = define.Substring(index + 1).Trim();
+                    cmds.Add(defFormat.body.Replace("${key}", macro).Replace("${value}", value));
                 }
                 else
                 {
-                    cmdLine += Regex.Replace(define, @"(?<=.[^=]*=)(?<val>.*)$", "\"${val}\"");
+                    macro = define.Trim();
+
+                    if (modelName == "asm")
+                    {
+                        value = "1";
+                        cmds.Add(defFormat.body.Replace("${key}", macro).Replace("${value}", value));
+                    }
+                    else
+                    {
+                        cmds.Add(Regex.Replace(defFormat.body, @"(?<define>^[^\$]+\$\{key\}).*$", "${define}")
+                            .Replace("${key}", macro));
+                    }
                 }
             }
-            return cmdLine.TrimStart();
+
+            return defFormat.prefix + string.Join(defFormat.sep, cmds.ToArray()) + defFormat.suffix;
         }
     }
 
@@ -465,10 +677,10 @@ namespace ARM_Builder_V6
         static readonly string incSearchName = "IncludeSearcher.exe";
 
         // file filters
-        static readonly Regex cFileFilter = new Regex(@"\.c$", RegexOptions.IgnoreCase);
-        static readonly Regex asmFileFilter = new Regex(@"\.(?:s|asm)$", RegexOptions.IgnoreCase);
-        static readonly Regex libFileFilter = new Regex(@"\.lib$", RegexOptions.IgnoreCase);
-        static readonly Regex cppFileFilter = new Regex(@"\.(?:cpp|cxx|cc|c\+\+)$", RegexOptions.IgnoreCase);
+        static readonly Regex cFileFilter = new Regex(@"\.c$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex asmFileFilter = new Regex(@"\.(?:s|asm|a51)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex libFileFilter = new Regex(@"\.lib$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex cppFileFilter = new Regex(@"\.(?:cpp|cxx|cc|c\+\+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         static readonly List<string> cList = new List<string>();
         static readonly List<string> cppList = new List<string>();
@@ -563,6 +775,7 @@ namespace ARM_Builder_V6
             }
 
             Dictionary<string, CmdGenerator.CmdInfo> commands = new Dictionary<string, CmdGenerator.CmdInfo>();
+            List<string> doneList = new List<string>();
             Dictionary<string, string> toolPaths = new Dictionary<string, string>();
             Dictionary<Regex, string> tasksEnv = new Dictionary<Regex, string>();
 
@@ -582,7 +795,9 @@ namespace ARM_Builder_V6
 
                 if (checkMode(BuilderMode.DEBUG))
                 {
-                    log("\r\nARM_Builder v" + Assembly.GetExecutingAssembly().GetName().Version + "\r\n");
+                    string appName = Assembly.GetExecutingAssembly().GetName().Name;
+
+                    log("\r\n" + appName + " v" + Assembly.GetExecutingAssembly().GetName().Version);
 
                     cmdGen.traverseCommands(delegate (string key, string cmdLine) {
                         warn("\r\n " + key + " tool's command: \r\n");
@@ -635,10 +850,12 @@ namespace ARM_Builder_V6
                     linkerFiles.Add(libFile);
                 }
 
-                CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles.ToArray());
-                DateTime time = DateTime.Now;
+                CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles, out List<string> mapRegList);
+                CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
 
                 // start build
+                DateTime time = DateTime.Now;
+                infoWithLable(cmdGen.getModelName() + "\r\n", true, "MODEL");
                 infoWithLable("-------------------- Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " --------------------\r\n");
 
                 if (checkMode(BuilderMode.FAST))
@@ -675,10 +892,11 @@ namespace ARM_Builder_V6
                     foreach (var cmdInfo in commands.Values)
                     {
                         log(" > Compile... " + Path.GetFileName(cmdInfo.sourcePath));
-                        if (system(cmdInfo.exePath + " " + cmdInfo.commandLine) != CODE_DONE)
+                        if (system("\"" + quotePath(cmdInfo.exePath) + " " + cmdInfo.commandLine + "\"") != CODE_DONE)
                         {
                             throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\"");
                         }
+                        doneList.Add(cmdInfo.sourcePath);
                     }
                 }
                 else
@@ -688,11 +906,14 @@ namespace ARM_Builder_V6
                     doneWithLable(reqThreadsNum.ToString() + " threads\r\n", true, "Use Multi-Thread Mode");
                     CmdGenerator.CmdInfo[] cmds = new CmdGenerator.CmdInfo[commands.Count];
                     commands.Values.CopyTo(cmds, 0);
-                    compileByMulThread(reqThreadsNum, cmds);
+                    compileByMulThread(reqThreadsNum, cmds, doneList);
                 }
 
                 log("\r\n");
                 infoWithLable("-------------------- Start link... --------------------\r\n");
+
+                if (!File.Exists(linkInfo.exePath))
+                    throw new Exception("Not found linker !, [path] : \"" + linkInfo.exePath + "\"");
 
                 if (libList.Count > 0)
                 {
@@ -703,20 +924,24 @@ namespace ARM_Builder_V6
                     log("");
                 }
 
-                if (system(linkInfo.exePath + " " + linkInfo.commandLine) != CODE_DONE)
+                if (system("\"" + quotePath(linkInfo.exePath) + " " + linkInfo.commandLine + "\"") != CODE_DONE)
                 {
                     throw new Exception("Link failed !");
                 }
 
                 // print more information
-                if (File.Exists(linkInfo.sourcePath))
+                if (linkInfo.sourcePath != null && File.Exists(linkInfo.sourcePath))
                 {
                     try
                     {
-                        Regex reg = new Regex(@"^\s*total.*size", RegexOptions.IgnoreCase);
-                        foreach (var line in File.ReadAllLines(linkInfo.sourcePath))
+                        Regex[] regList = mapRegList.ConvertAll((string reg) =>
                         {
-                            if (reg.IsMatch(line))
+                            return new Regex(reg, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                        }).ToArray();
+
+                        foreach (string line in File.ReadAllLines(linkInfo.sourcePath))
+                        {
+                            if (Array.FindIndex(regList, (Regex reg) => { return reg.IsMatch(line); }) != -1)
                             {
                                 log("\r\n" + line.Trim());
                             }
@@ -731,23 +956,17 @@ namespace ARM_Builder_V6
                 log("\r\n");
                 infoWithLable("-------------------- Start output hex... --------------------\r\n");
 
-                string fromelfPath = Path.GetDirectoryName(linkInfo.exePath) + Path.DirectorySeparatorChar + "fromelf.exe";
-                string hexPath = Path.GetDirectoryName(linkInfo.outPath) + Path.DirectorySeparatorChar
-                    + Path.GetFileNameWithoutExtension(linkInfo.outPath) + ".hex";
-
                 try
                 {
-                    if (!File.Exists(fromelfPath))
-                        throw new Exception("Not found fromelf.exe !, [path] : \"" + fromelfPath + "\"");
+                    if (!File.Exists(outputInfo.exePath))
+                        throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
+                            + " !, [path] : \"" + outputInfo.exePath + "\"");
 
-                    string outputCmd = fromelfPath
-                        + " --i32combined \"" + linkInfo.outPath.Replace('\\', '/') + "\""
-                        + " --output \"" + hexPath.Replace('\\', '/') + "\"";
-
-                    if (system(outputCmd) != CODE_DONE)
+                    if (system("\"" + quotePath(outputInfo.exePath) + " " + outputInfo.commandLine + "\"") != CODE_DONE)
                         throw new Exception("Output hex failed !");
 
-                    infoWithLable("Hex file path : \"" + hexPath + "\"");
+                    log("");
+                    infoWithLable("Hex file path : \"" + outputInfo.outPath + "\"");
                 }
                 catch (Exception err)
                 {
@@ -758,10 +977,10 @@ namespace ARM_Builder_V6
                 updateDatabase(commands.Keys);
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
-                log("\r\n");
+                log("");
                 doneWithLable("-------------------- Build successfully ! Elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " --------------------\r\n\r\n");
+                    + " --------------------\r\n");
             }
             catch (Exception err)
             {
@@ -777,7 +996,7 @@ namespace ARM_Builder_V6
                 File.AppendAllText(logFile, txt);
 
                 // flush to database
-                updateDatabase(commands.Keys);
+                updateDatabase(doneList);
 
                 return CODE_ERR;
             }
@@ -804,7 +1023,12 @@ namespace ARM_Builder_V6
             public int end;
         }
 
-        static void compileByMulThread(int thrNum, CmdGenerator.CmdInfo[] cmds)
+        static string quotePath(string path)
+        {
+            return path.Contains(" ") ? ("\"" + path + "\"") : path;
+        }
+
+        static void compileByMulThread(int thrNum, CmdGenerator.CmdInfo[] cmds, List<string> doneList)
         {
             Thread[] tasks = new Thread[thrNum];
             ManualResetEvent[] tEvents = new ManualResetEvent[thrNum];
@@ -827,11 +1051,16 @@ namespace ARM_Builder_V6
                         }
 
                         log(" > Compile... " + Path.GetFileName(cmds[index].sourcePath));
-                        if (system(cmds[index].exePath + " " + cmds[index].commandLine) != CODE_DONE)
+                        if (system("\"" + quotePath(cmds[index].exePath) + " " + cmds[index].commandLine + "\"") != CODE_DONE)
                         {
                             err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\"");
                             break;
                         }
+
+                        lock (doneList)
+                        {
+                            doneList.Add(cmds[index].sourcePath);
+                        };
                     }
 
                     dat._event.Set();
@@ -962,7 +1191,7 @@ namespace ARM_Builder_V6
             catch (Exception err)
             {
                 error("\r\n" + err.Message);
-                warn("\r\nupdate to database failed !");
+                warn("\r\nupdate to database invoke failed !");
             }
         }
 
@@ -1150,20 +1379,12 @@ namespace ARM_Builder_V6
 
         static void prepareParams(JObject _params)
         {
-            bool isExist = false;
-            //__UVISION_VERSION = "526"
-            Regex reg = new Regex(@"^\s*__UVISION_VERSION");
-            foreach (var item in ((JArray)paramsObj["defines"]).Values<string>())
+            if (compilerModel.ContainsKey("defines"))
             {
-                if (reg.IsMatch(item))
+                foreach (var define in ((JArray)compilerModel["defines"]).Values<string>())
                 {
-                    isExist = true;
-                    break;
+                    ((JArray)paramsObj["defines"]).Add(define);
                 }
-            }
-            if (!isExist)
-            {
-                ((JArray)paramsObj["defines"]).Add("__UVISION_VERSION=526");
             }
         }
 

@@ -7,7 +7,7 @@
     <ProjectGuid>{C3AE1AA9-C6FE-4E51-919C-923BCDB3F67B}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>ARM_Builder_V6</RootNamespace>
-    <AssemblyName>ARM_Builder_V6</AssemblyName>
+    <AssemblyName>General_Builder_V6</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -47,9 +47,24 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="arm.v5.model.json" />
-    <None Include="arm.v6.model.json" />
+    <None Include="8051.keil.model.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="arm.v5.model.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="arm.v6.model.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config" />
+    <None Include="sdcc.model.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ProjectExtensions>
+    <VisualStudio>
+      <UserProperties arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" />
+    </VisualStudio>
+  </ProjectExtensions>
 </Project>
