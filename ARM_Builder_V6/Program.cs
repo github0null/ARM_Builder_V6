@@ -66,6 +66,7 @@ namespace ARM_Builder_V6
         private readonly string cCompilerName;
         private readonly string asmCompilerName;
         private readonly string linkerName;
+        private readonly bool useUnixPath;
 
         private readonly string outDir;
         private readonly string binDir;
@@ -81,7 +82,9 @@ namespace ARM_Builder_V6
             outDir = outpath;
             binDir = bindir;
 
-            var compileOptions = (JObject)cParams[optionKey];
+            useUnixPath = cModel.ContainsKey("useUnixPath") ? cModel["useUnixPath"].Value<bool>() : false;
+
+            JObject compileOptions = (JObject)cParams[optionKey];
 
             paramObj.Add("global", compileOptions.ContainsKey("global") ? (JObject)compileOptions["global"] : new JObject());
             paramObj.Add("c", compileOptions.ContainsKey("c/cpp-compiler") ? (JObject)compileOptions["c/cpp-compiler"] : new JObject());
@@ -487,6 +490,11 @@ namespace ARM_Builder_V6
 
         private string toQuotingPath(string path, bool quote = true)
         {
+            if (useUnixPath)
+            {
+                return (quote && path.Contains(" ")) ? ("\"" + path.Replace("\\", "/") + "\"") : path.Replace("\\", "/");
+            }
+
             return (quote && path.Contains(" ")) ? ("\"" + path + "\"") : path;
         }
 
