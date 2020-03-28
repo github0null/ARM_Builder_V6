@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using System.Data.SQLite;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Configuration;
 
 namespace IncludeSearcher
 {
@@ -216,7 +216,7 @@ namespace IncludeSearcher
                         }
                         else
                         {
-                            error("[ERROR] not found source in cache !");
+                            error("not found source in cache !");
                             log("[File-" + Enum.GetName(typeof(FileStateFlag), FileStateFlag.New) + "]" + srcFile.FullName);
                             totalState = FileStateFlag.New;
                         }
@@ -235,12 +235,12 @@ namespace IncludeSearcher
                                         break;
                                     }
                                 }
-                                else
+                                /*else
                                 {
-                                    error("[ERROR] not found header in cache !");
-                                    totalState = FileStateFlag.New;
+                                    error("not found header in cache !");
+                                   totalState = FileStateFlag.New;
                                     break;
-                                }
+                                }*/
                             }
                         }
 
@@ -520,19 +520,22 @@ namespace IncludeSearcher
                 {
                     string[] resultSet = searchFileIncludes(headerDirs, headerPath);
 
-                    searchCache.Add(headerPath, new DBData
+                    if (resultSet != null)
                     {
-                        path = headerPath,
-                        lastTime = File.GetLastWriteTime(headerPath).ToString(dateFormat),
-                        depList = resultSet,
-                        state = FileStateFlag.New
-                    });
-
-                    foreach (var item in resultSet)
-                    {
-                        if (resList.Add(item))
+                        searchCache.Add(headerPath, new DBData
                         {
-                            fStack.Push(item);
+                            path = headerPath,
+                            lastTime = File.GetLastWriteTime(headerPath).ToString(dateFormat),
+                            depList = resultSet,
+                            state = FileStateFlag.New
+                        });
+
+                        foreach (var item in resultSet)
+                        {
+                            if (resList.Add(item))
+                            {
+                                fStack.Push(item);
+                            }
                         }
                     }
                 }
@@ -543,9 +546,18 @@ namespace IncludeSearcher
 
         static string[] searchFileIncludes(string[] headerDirs, string path)
         {
-            string[] lines = File.ReadAllLines(path);
-            HashSet<string> reqHeaders = new HashSet<string>();
+            string[] lines;
 
+            try
+            {
+                lines = File.ReadAllLines(path);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+
+            HashSet<string> reqHeaders = new HashSet<string>();
             foreach (var _line in lines)
             {
                 string line = _line.TrimStart();
@@ -651,9 +663,16 @@ namespace IncludeSearcher
             Console.WriteLine("[" + label + "] " + txt);
         }
 
+        static bool _isFirstLine = true;
         static void error(string txt)
         {
-            Console.Error.WriteLine("[ERROR]" + txt);
+            if (_isFirstLine)
+            {
+                Console.Error.WriteLine();
+                _isFirstLine = false;
+            }
+            
+            Console.Error.WriteLine("[Warning] " + txt);
         }
     }
 }

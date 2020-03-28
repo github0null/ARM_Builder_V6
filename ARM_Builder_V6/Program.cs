@@ -1025,10 +1025,7 @@ namespace ARM_Builder_V6
                 log("");
 
                 // dump error log
-                string logFile = dumpPath + Path.DirectorySeparatorChar + "arm_builder.log";
-                string txt = "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "]\t";
-                txt += err.Message + "\r\n" + err.StackTrace + "\r\n\r\n";
-                File.AppendAllText(logFile, txt);
+                appendLogs(err);
 
                 // flush to database
                 updateDatabase(doneList);
@@ -1351,14 +1348,23 @@ namespace ARM_Builder_V6
                 proc.StartInfo.FileName = incSearchName;
                 proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
                 proc.StartInfo.UseShellExecute = false;
-                proc.StartInfo.Arguments = " -p \"" + paramsPath + "\" -d \"" + dumpPath + "\"";
+                proc.StartInfo.Arguments = "-p \"" + paramsPath + "\" -d \"" + dumpPath + "\"";
                 proc.StartInfo.CreateNoWindow = false;
                 proc.StartInfo.RedirectStandardOutput = true;
+                proc.StartInfo.RedirectStandardError = true;
                 proc.Start();
 
                 string[] lines = enterReg.Split(proc.StandardOutput.ReadToEnd());
+                string errorLine = proc.StandardError.ReadToEnd();
+
                 proc.WaitForExit();
+                int exitCode = proc.ExitCode;
                 proc.Close();
+
+                if (!string.IsNullOrEmpty(errorLine))
+                {
+                    appendLogs(new Exception("[IncSearcher exit "+ exitCode.ToString() +"] : " + errorLine));
+                }
 
                 foreach (var line in lines)
                 {
@@ -1515,6 +1521,21 @@ namespace ARM_Builder_V6
         }
 
         //============================================
+
+        static void appendLogs(Exception err)
+        {
+            try
+            {
+                string logFile = dumpPath + Path.DirectorySeparatorChar + "arm_builder.log";
+                string txt = "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "]\t";
+                txt += err.Message + "\r\n" + err.StackTrace + "\r\n\r\n";
+                File.AppendAllText(logFile, txt);
+            }
+            catch (Exception _err)
+            {
+                error("log dump failed !, " + _err.Message);
+            }
+        }
 
         static void log(string line, bool newLine = true)
         {
