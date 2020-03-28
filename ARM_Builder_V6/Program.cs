@@ -691,6 +691,7 @@ namespace ARM_Builder_V6
     {
         static readonly int CODE_ERR = 1;
         static readonly int CODE_DONE = 0;
+
         static readonly int compileThreshold = 16;
         static readonly string incSearchName = "IncludeSearcher.exe";
 
@@ -699,6 +700,8 @@ namespace ARM_Builder_V6
         static readonly Regex asmFileFilter = new Regex(@"\.(?:s|asm|a51)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex libFileFilter = new Regex(@"\.lib$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex cppFileFilter = new Regex(@"\.(?:cpp|cxx|cc|c\+\+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        static readonly Regex enterReg = new Regex(@"\r\n|\n", RegexOptions.Compiled);
 
         static readonly List<string> cList = new List<string>();
         static readonly List<string> cppList = new List<string>();
@@ -770,7 +773,6 @@ namespace ARM_Builder_V6
                 outDir = paramsTable["-o"][0];
                 modeList.Add(BuilderMode.NORMAL);
                 reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
-                reqThreadsNum = reqThreadsNum >= 8 ? 8 : 4;
                 prepareModel();
                 prepareParams(paramsObj);
                 if (paramsTable.ContainsKey("-m"))
@@ -931,12 +933,11 @@ namespace ARM_Builder_V6
                 }
                 else
                 {
-                    int part = commands.Count / reqThreadsNum;
-                    reqThreadsNum = part < 4 ? 4 : reqThreadsNum;
-                    doneWithLable(reqThreadsNum.ToString() + " threads\r\n", true, "Use Multi-Thread Mode");
+                    int threads = calcuThreads(reqThreadsNum, commands.Count);
+                    doneWithLable(threads.ToString() + " threads\r\n", true, "Use Multi-Thread Mode");
                     CmdGenerator.CmdInfo[] cmds = new CmdGenerator.CmdInfo[commands.Count];
                     commands.Values.CopyTo(cmds, 0);
-                    compileByMulThread(reqThreadsNum, cmds, doneList);
+                    compileByMulThread(threads, cmds, doneList);
                 }
 
                 log("\r\n");
@@ -1050,6 +1051,29 @@ namespace ARM_Builder_V6
 
         //============================================
 
+        static int calcuThreads(int cpus, int cmdCount)
+        {
+            if (cpus <= 0)
+            {
+                return 4;
+            }
+
+            int expactThread = cpus - (cpus % 2);
+            int maxThread = expactThread * 2;
+
+            if (cmdCount / maxThread >= 2)
+            {
+                return maxThread;
+            }
+
+            if (cmdCount / expactThread >= 2)
+            {
+                return expactThread;
+            }
+
+            return 8;
+        }
+
         static void changeWorkDir(string path)
         {
             Environment.CurrentDirectory = path;
@@ -1058,6 +1082,27 @@ namespace ARM_Builder_V6
         static void resetWorkDir()
         {
             Environment.CurrentDirectory = prevWorkDir;
+        }
+
+        static string runExe(string filename, string args, out int exitCode)
+        {
+            Process process = new Process();
+            process.StartInfo.FileName = filename;
+            process.StartInfo.Arguments = args;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.CreateNoWindow = true;
+            process.Start();
+
+            string output = process.StandardOutput.ReadToEnd();
+            output += process.StandardError.ReadToEnd();
+
+            process.WaitForExit();
+            exitCode = process.ExitCode;
+            process.Close();
+
+            return output;
         }
 
         struct TaskData
@@ -1090,7 +1135,15 @@ namespace ARM_Builder_V6
                         }
 
                         log(" > Compile... " + Path.GetFileName(cmds[index].sourcePath));
-                        if (system(cmds[index].exePath + " " + cmds[index].commandLine) != CODE_DONE)
+
+                        string output = runExe(cmds[index].exePath, cmds[index].commandLine, out int exitCode);
+
+                        lock (Console.Out)
+                        {
+                            Console.Write(output);
+                        }
+
+                        if (exitCode != CODE_DONE)
                         {
                             err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\"");
                             break;
@@ -1303,7 +1356,7 @@ namespace ARM_Builder_V6
                 proc.StartInfo.RedirectStandardOutput = true;
                 proc.Start();
 
-                string[] lines = Regex.Split(proc.StandardOutput.ReadToEnd(), @"\r\n|\n");
+                string[] lines = enterReg.Split(proc.StandardOutput.ReadToEnd());
                 proc.WaitForExit();
                 proc.Close();
 
