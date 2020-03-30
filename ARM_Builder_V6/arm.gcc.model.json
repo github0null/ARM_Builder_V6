@@ -1,0 +1,209 @@
+﻿{
+    "name": "GCC for ARM",
+    "toolPrefix": "arm-none-eabi-",
+    "useUnixPath": true,
+    "global": {
+        "misc-controls": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "c/cpp",
+                "asm",
+                "linker"
+            ]
+        },
+        "output-debug-info": {
+            "type": "selectable",
+            "command": {
+                "enable": "-g",
+                "disable": "",
+                "dwarf-3": "-gdwarf-3",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ]
+        },
+        "microcontroller-cpu": {
+            "type": "keyValue",
+            "command": "-mcpu=",
+            "enum": {
+                "cortex-m0": "cortex-m0",
+                "cortex-m0+": "cortex-m0plus",
+                "cortex-m3": "cortex-m3",
+                "cortex-m4-none": "cortex-m4",
+                "cortex-m4-sp": "cortex-m4",
+                "cortex-m7-none": "cortex-m7",
+                "cortex-m7-sp": "cortex-m7",
+                "cortex-m7-dp": "cortex-m7"
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ]
+        },
+        "microcontroller-fpu": {
+            "type": "selectable",
+            "command": {
+                "cortex-m0": "",
+                "cortex-m0+": "",
+                "cortex-m3": "",
+                "cortex-m4-none": "-mfpu=none",
+                "cortex-m4-sp": "-mfpu=fpv4-sp-d16",
+                "cortex-m7-none": "-mfpu=none",
+                "cortex-m7-sp": "-mfpu=fpv5-sp-d16",
+                "cortex-m7-dp": "-mfpu=fpv5-d16"
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ]
+        },
+        "microcontroller-float": {
+            "type": "selectable",
+            "command": {
+                "cortex-m0": "",
+                "cortex-m0+": "",
+                "cortex-m3": "",
+                "cortex-m4-none": "-mfloat-abi=soft",
+                "cortex-m4-sp": "-mfloat-abi=hard",
+                "cortex-m7-none": "-mfloat-abi=soft",
+                "cortex-m7-sp": "-mfloat-abi=hard",
+                "cortex-m7-dp": "-mfloat-abi=hard"
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ],
+            "description": ""
+        }
+    },
+    "groups": {
+        "c/cpp": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "-o ${out} ${in}",
+            "$default": [
+                "-c",
+                "-mthumb"
+            ],
+            "$language-c": {
+                "type": "keyValue",
+                "command": "-x c -std=",
+                "enum": {
+                    "default": "c90",
+                    "c89": "c89",
+                    "c90": "c90",
+                    "c99": "c99",
+                    "c11": "c11",
+                    "c1x": "c1x",
+                    "gnu89": "gnu89",
+                    "gnu90": "gnu90",
+                    "gnu99": "gnu99",
+                    "gnu11": "gnu11",
+                    "gnu1x": "gnu1x"
+                }
+            },
+            "$language-cpp": {
+                "type": "keyValue",
+                "command": "-x c++ -std=",
+                "enum": {
+                    "default": "c++98",
+                    "c++98": "c++98",
+                    "gnu++98": "gnu++98",
+                    "c++11": "c++11",
+                    "gnu++11": "gnu++11",
+                    "c++14": "c++14",
+                    "gnu++14": "gnu++14"
+                }
+            },
+            "optimization": {
+                "type": "selectable",
+                "command": {
+                    "false": "",
+                    "level-0": "-O0",
+                    "level-1": "-O1",
+                    "level-2": "-O2",
+                    "level-3": "-O3",
+                    "level-size": "-Os",
+                    "level-fast": "-Ofast",
+                    "level-debug": "-Og"
+                }
+            },
+            "plain-char-is-signed": {
+                "type": "selectable",
+                "command": {
+                    "true": "-fsigned-char",
+                    "false": "-funsigned-char"
+                }
+            },
+            "turn-Warning-into-errors": {
+                "type": "selectable",
+                "command": {
+                    "true": "-Werror",
+                    "false": ""
+                }
+            },
+            "warnings": {
+                "type": "selectable",
+                "command": {
+                    "false": "",
+                    "no-warnings": "-w",
+                    "all-warnings": "-Wall"
+                }
+            }
+        },
+        "asm": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$output": "-o ${out} ${in}",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$default": [
+                "-x assembler",
+                "-x assembler-with-cpp",
+                "-c",
+                "-mthumb"
+            ]
+        },
+        "linker": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "${in} -o ${out}",
+            "$outputSuffix": ".elf",
+            "$linkMap": {
+                "type": "value",
+                "command": "-Wl,-Map=${mapPath}"
+            },
+            "link-scatter": {
+                "type": "value",
+                "command": "-T "
+            }
+        },
+        "output": {
+            "$path": "bin\\${toolPrefix}objcopy.exe",
+            "$outputSuffix": ".hex",
+            "command": "-O ihex ${linkerOutput} ${output}"
+        }
+    }
+}

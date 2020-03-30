@@ -63,6 +63,7 @@ namespace ARM_Builder_V6
             new Dictionary<string, Dictionary<string, CmdFormat>>();
         private readonly Dictionary<string, InvokeFormat> invokeFormats = new Dictionary<string, InvokeFormat>();
 
+        private readonly string toolPrefix;
         private readonly string cCompilerName;
         private readonly string asmCompilerName;
         private readonly string linkerName;
@@ -107,12 +108,38 @@ namespace ARM_Builder_V6
             models.Add("asm", (JObject)cModel["groups"][asmCompilerName]);
             models.Add("linker", (JObject)cModel["groups"]["linker"]);
 
+            // init command line from model
+            JObject globalParams = paramObj["global"];
+
+            // set tool path prefix
+            if (globalParams.ContainsKey("toolPrefix"))
+            {
+                toolPrefix = globalParams["toolPrefix"].Value<string>();
+            }
+            else if (cModel.ContainsKey("toolPrefix"))
+            {
+                toolPrefix = cModel["toolPrefix"].Value<string>();
+            }
+            else
+            {
+                toolPrefix = "";
+            }
+
             // set encodings
             foreach (string modelName in models.Keys)
             {
                 if (models[modelName].ContainsKey("$encoding"))
                 {
-                    encodings.Add(modelName, getEncoding(models[modelName]["$encoding"].Value<string>()));
+                    string codeName = models[modelName]["$encoding"].Value<string>();
+                    switch (codeName)
+                    {
+                        case "UTF8":
+                            encodings.Add(modelName, new UTF8Encoding(false));
+                            break;
+                        default:
+                            encodings.Add(modelName, getEncoding(codeName));
+                            break;
+                    }
                 }
                 else
                 {
@@ -137,9 +164,6 @@ namespace ARM_Builder_V6
 
                 invokeFormats.Add(modelName, modelParams["$invoke"].ToObject<InvokeFormat>());
             }
-
-            // init command line from model
-            JObject globalParams = paramObj["global"];
 
             // set outName to unique
             getUniqueName(getOutName());
@@ -327,18 +351,18 @@ namespace ARM_Builder_V6
 
             for (int i = 0; i < objList.Count; i++)
             {
-                objList[i] = toQuotingPath(objList[i]);
+                objList[i] = toUnixQuotingPath(objList[i]);
             }
 
             cmdLine += sep + linkerModel["$output"].Value<string>()
-                .Replace("${out}", toQuotingPath(outPath))
+                .Replace("${out}", toUnixQuotingPath(outPath))
                 .Replace("${in}", string.Join(objSep, objList.ToArray()));
 
             string mapPath = outDir + Path.DirectorySeparatorChar + outName + mapSuffix;
             if (linkerModel.ContainsKey("$linkMap"))
             {
                 cmdLine += sep + getCommandValue((JObject)linkerModel["$linkMap"], "")
-                    .Replace("${mapPath}", toQuotingPath(mapPath));
+                    .Replace("${mapPath}", toUnixQuotingPath(mapPath));
             }
 
             switch (cmdLocation)
@@ -364,7 +388,7 @@ namespace ARM_Builder_V6
 
             return new CmdInfo
             {
-                exePath = binDir + Path.DirectorySeparatorChar + linkerModel["$path"].Value<string>(),
+                exePath = getToolPath("linker"),
                 commandLine = commandLine,
                 sourcePath = mapPath,
                 outPath = outPath
@@ -386,12 +410,12 @@ namespace ARM_Builder_V6
             }
 
             string command = outputModel["command"].Value<string>()
-                .Replace("${linkerOutput}", toQuotingPath(linkerOutputFile))
-                .Replace("${output}", toQuotingPath(hexpath));
+                .Replace("${linkerOutput}", toUnixQuotingPath(linkerOutputFile))
+                .Replace("${output}", toUnixQuotingPath(hexpath));
 
             return new CmdInfo
             {
-                exePath = binDir + Path.DirectorySeparatorChar + outputModel["$path"].Value<string>(),
+                exePath = getToolPathByRePath(outputModel["$path"].Value<string>()),
                 commandLine = command,
                 sourcePath = linkerOutputFile,
                 outPath = hexpath
@@ -403,9 +427,15 @@ namespace ARM_Builder_V6
             return parameters.ContainsKey("name") ? parameters["name"].Value<string>() : "main";
         }
 
+        public string getToolPathByRePath(string rePath)
+        {
+            return binDir + Path.DirectorySeparatorChar + rePath.Replace("${toolPrefix}", toolPrefix);
+        }
+
         public string getToolPath(string name)
         {
-            return binDir + Path.DirectorySeparatorChar + models[name]["$path"].Value<string>();
+            return binDir + Path.DirectorySeparatorChar
+                + models[name]["$path"].Value<string>().Replace("${toolPrefix}", toolPrefix);
         }
 
         public void traverseCommands(CmdVisitor visitor)
@@ -417,6 +447,11 @@ namespace ARM_Builder_V6
         public string getModelName()
         {
             return model.ContainsKey("name") ? model["name"].Value<string>() : "null";
+        }
+
+        public string getToolPrefix()
+        {
+            return toolPrefix;
         }
 
         //------------
@@ -450,21 +485,21 @@ namespace ARM_Builder_V6
             if (cModel.ContainsKey("$listPath"))
             {
                 commands.Add(getCommandValue((JObject)cModel["$listPath"], "")
-                    .Replace("${listPath}", toQuotingPath(listPath, isQuote)));
+                    .Replace("${listPath}", toUnixQuotingPath(listPath, isQuote)));
             }
 
             string outputFormat = cModel["$output"].Value<string>();
             if (outputFormat.Contains("${in}"))
             {
                 commands.AddRange(cmdLists[modelName]);
-                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath, isQuote))
-                    .Replace("${in}", toQuotingPath(fpath, isQuote)));
+                commands.Add(outputFormat.Replace("${out}", toUnixQuotingPath(outPath, isQuote))
+                    .Replace("${in}", toUnixQuotingPath(fpath, isQuote)));
             }
             else
             {
-                commands.Insert(0, toQuotingPath(fpath));
+                commands.Insert(0, toUnixQuotingPath(fpath));
                 commands.AddRange(cmdLists[modelName]);
-                commands.Add(outputFormat.Replace("${out}", toQuotingPath(outPath, isQuote)));
+                commands.Add(outputFormat.Replace("${out}", toUnixQuotingPath(outPath, isQuote)));
             }
 
             string commandLine = null;
@@ -481,14 +516,14 @@ namespace ARM_Builder_V6
 
             return new CmdInfo
             {
-                exePath = binDir + Path.DirectorySeparatorChar + cModel["$path"].Value<string>(),
+                exePath = getToolPath(modelName),
                 commandLine = commandLine,
                 sourcePath = fpath,
                 outPath = outPath
             };
         }
 
-        private string toQuotingPath(string path, bool quote = true)
+        private string toUnixQuotingPath(string path, bool quote = true)
         {
             if (useUnixPath)
             {
@@ -595,7 +630,7 @@ namespace ARM_Builder_V6
                     }
                     break;
                 case "value":
-                    command = option["command"].Value<string>() + (string)value ?? "";
+                    command = option["command"].Value<string>() + toUnixQuotingPath((string)value ?? "", false);
                     break;
                 case "list":
                     List<string> cmds = new List<string>() { option["command"].Value<string>() };
@@ -636,7 +671,7 @@ namespace ARM_Builder_V6
             {
                 foreach (var inculdePath in incList)
                 {
-                    cmds.Add(incFormat.body.Replace("${value}", toQuotingPath(inculdePath)));
+                    cmds.Add(incFormat.body.Replace("${value}", toUnixQuotingPath(inculdePath)));
                 }
             }
 
@@ -814,6 +849,7 @@ namespace ARM_Builder_V6
                 tasksEnv.Add(new Regex(@"\$\{OutDir\}", RegexOptions.IgnoreCase), outDir);
                 tasksEnv.Add(new Regex(@"\$\{CompileToolDir\}", RegexOptions.IgnoreCase),
                     Path.GetDirectoryName(binDir + Path.DirectorySeparatorChar + cmdGen.getToolPath("linker")));
+                tasksEnv.Add(new Regex(@"\$\{toolPrefix\}", RegexOptions.IgnoreCase), cmdGen.getToolPrefix());
 
                 if (checkMode(BuilderMode.DEBUG))
                 {
@@ -845,8 +881,6 @@ namespace ARM_Builder_V6
                         throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
                 }
 
-                resetWorkDir();
-
                 //========================================================
 
                 log("");
@@ -856,6 +890,8 @@ namespace ARM_Builder_V6
                 {
                     throw new Exception("Run Tasks Failed !, Stop Build !");
                 }
+
+                resetWorkDir();
 
                 foreach (var cFile in cList)
                 {
@@ -1036,7 +1072,9 @@ namespace ARM_Builder_V6
             try
             {
                 // run tasks after build success
+                changeWorkDir(binDir);
                 runTasks("Run Tasks After Build", "afterBuildTasks", tasksEnv);
+                resetWorkDir();
             }
             catch (Exception err)
             {
@@ -1048,15 +1086,15 @@ namespace ARM_Builder_V6
 
         //============================================
 
-        static int calcuThreads(int cpus, int cmdCount)
+        static int calcuThreads(int threads, int cmdCount)
         {
-            if (cpus <= 0)
+            if (threads < 2)
             {
                 return 4;
             }
 
-            int expactThread = cpus - (cpus % 2);
-            int maxThread = expactThread * 2;
+            int maxThread = threads;
+            int expactThread = threads / 2;
 
             if (cmdCount / maxThread >= 2)
             {
@@ -1363,7 +1401,7 @@ namespace ARM_Builder_V6
 
                 if (!string.IsNullOrEmpty(errorLine))
                 {
-                    appendLogs(new Exception("[IncSearcher exit "+ exitCode.ToString() +"] : " + errorLine));
+                    appendLogs(new Exception("[IncSearcher exit " + exitCode.ToString() + "] : " + errorLine));
                 }
 
                 foreach (var line in lines)
