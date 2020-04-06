@@ -1130,14 +1130,24 @@ namespace ARM_Builder_V6
             process.StartInfo.CreateNoWindow = true;
             process.Start();
 
-            string output = process.StandardOutput.ReadToEnd();
-            output += process.StandardError.ReadToEnd();
+            StringBuilder output = new StringBuilder();
+
+            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+                output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
+            };
+
+            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+                output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
+            };
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
 
             process.WaitForExit();
             exitCode = process.ExitCode;
             process.Close();
 
-            return output;
+            return output.ToString();
         }
 
         struct TaskData
