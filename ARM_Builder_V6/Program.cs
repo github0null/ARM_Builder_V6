@@ -1339,6 +1339,18 @@ namespace ARM_Builder_V6
             }
         }
 
+        static string getBlanks(int num)
+        {
+            char[] buf = new char[num];
+
+            for (int i = 0; i < num; i++)
+            {
+                buf[i] = ' ';
+            }
+
+            return new string(buf);
+        }
+
         static int runTasks(string label, string fieldName, Dictionary<Regex, string> envList, bool nLine = false)
         {
             JObject options = (JObject)paramsObj[CmdGenerator.optionKey];
@@ -1350,8 +1362,20 @@ namespace ARM_Builder_V6
 
                     if (taskList.Count > 0)
                     {
-                        infoWithLable("", true, label);
                         int x, y, cX, cY;
+                        int maxLen = -1;
+
+                        infoWithLable("", true, label);
+
+                        // get max length
+                        foreach (JObject cmd in taskList)
+                        {
+                            if (cmd.ContainsKey("name"))
+                            {
+                                string name = cmd["name"].Value<string>();
+                                maxLen = name.Length > maxLen ? name.Length : maxLen;
+                            }
+                        }
 
                         foreach (JObject cmd in taskList)
                         {
@@ -1361,7 +1385,10 @@ namespace ARM_Builder_V6
                             }
 
                             info("\r\n[Run]>> ", false);
-                            log(cmd["name"].Value<string>() + "\t", false);
+
+                            string tName = cmd["name"].Value<string>();
+                            log(tName + getBlanks(maxLen - tName.Length) + "\t\t", false);
+
                             x = Console.CursorLeft;
                             y = Console.CursorTop;
                             log("\r\n");
@@ -1383,7 +1410,7 @@ namespace ARM_Builder_V6
                                 cY = Console.CursorTop;
                                 Console.CursorLeft = x;
                                 Console.CursorTop = y;
-                                doneWithLable("", false);
+                                success("[Done]");
                                 Console.CursorLeft = cX;
                                 Console.CursorTop = cY;
                             }
@@ -1393,7 +1420,7 @@ namespace ARM_Builder_V6
                                 cY = Console.CursorTop;
                                 Console.CursorLeft = x;
                                 Console.CursorTop = y;
-                                errorWithLable("", false, "Failed");
+                                error("[Failed]");
                                 Console.CursorLeft = cX;
                                 Console.CursorTop = cY;
 
@@ -1709,6 +1736,16 @@ namespace ARM_Builder_V6
                 Console.WriteLine(line);
             else
                 Console.Write(line);
+        }
+
+        static void success(string txt, bool newLine = true)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            if (newLine)
+                Console.WriteLine(txt);
+            else
+                Console.Write(txt);
+            Console.ResetColor();
         }
 
         static void info(string txt, bool newLine = true)
