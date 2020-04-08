@@ -975,7 +975,7 @@ namespace ARM_Builder_V6
                 // switch work directory
                 changeWorkDir(binDir);
 
-                log("\r\n");
+                log("");
                 infoWithLable("-------------------- Start compilation... --------------------\r\n");
 
                 if (!checkMode(BuilderMode.MULTHREAD) || commands.Values.Count < compileThreshold)
@@ -999,26 +999,32 @@ namespace ARM_Builder_V6
                     compileByMulThread(threads, cmds, doneList);
                 }
 
-                log("\r\n");
-                infoWithLable("-------------------- Start link... --------------------\r\n");
+                log("");
+                infoWithLable("-------------------- Start link... --------------------");
 
                 if (!File.Exists(linkInfo.exePath))
                     throw new Exception("Not found linker !, [path] : \"" + linkInfo.exePath + "\"");
 
                 if (libList.Count > 0)
                 {
+                    log("");
+
                     foreach (var lib in libList)
                     {
                         log(" > Link Lib... " + Path.GetFileName(lib));
                     }
-                    log("");
                 }
 
-                if (system(linkInfo.exePath + " " + linkInfo.commandLine) != CODE_DONE)
+                int linkerExitCode = runExe(linkInfo.exePath, linkInfo.commandLine, out string linkerOut);
+
+                if (!string.IsNullOrEmpty(linkerOut.Trim()))
                 {
-                    throw new Exception("Link failed !");
+                    log("\r\n" + linkerOut, false);
                 }
 
+                if (linkerExitCode != CODE_DONE)
+                    throw new Exception("Link failed !");
+                
                 // print more information
                 if (linkInfo.sourcePath != null && File.Exists(linkInfo.sourcePath))
                 {
@@ -1060,30 +1066,25 @@ namespace ARM_Builder_V6
                             }
                         }
 
-                        if ((ramMaxSize != -1 && ramSize > 0) || (romMaxSize != -1 && romSize > 0))
+                        float sizeKb = 0.0f;
+                        float maxKb = 1.0f;
+
+                        if (ramMaxSize != -1 && ramSize > 0)
                         {
-                            log("");
+                            sizeKb = ramSize / 1024.0f;
+                            maxKb = ramMaxSize / 1024.0f;
 
-                            float sizeKb = 0.0f;
-                            float maxKb = 1.0f;
+                            string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                            printProgress("\r\nRAM Usage: ", (float)ramSize / ramMaxSize, suffix);
+                        }
 
-                            if (ramMaxSize != -1 && ramSize > 0)
-                            {
-                                sizeKb = ramSize / 1024.0f;
-                                maxKb = ramMaxSize / 1024.0f;
+                        if (romMaxSize != -1 && romSize > 0)
+                        {
+                            sizeKb = romSize / 1024.0f;
+                            maxKb = romMaxSize / 1024.0f;
 
-                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                                printProgress("\r\nRAM Usage: ", (float)ramSize / ramMaxSize, suffix);
-                            }
-
-                            if (romMaxSize != -1 && romSize > 0)
-                            {
-                                sizeKb = romSize / 1024.0f;
-                                maxKb = romMaxSize / 1024.0f;
-
-                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                                printProgress("\r\nROM Usage: ", (float)romSize / romMaxSize, suffix);
-                            }
+                            string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                            printProgress("\r\nROM Usage: ", (float)romSize / romMaxSize, suffix);
                         }
                     }
                     catch (Exception err)
@@ -1092,8 +1093,8 @@ namespace ARM_Builder_V6
                     }
                 }
 
-                log("\r\n");
-                infoWithLable("-------------------- Start output hex... --------------------\r\n");
+                log("");
+                infoWithLable("-------------------- Start output hex... --------------------");
 
                 try
                 {
@@ -1101,15 +1102,21 @@ namespace ARM_Builder_V6
                         throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
                             + " !, [path] : \"" + outputInfo.exePath + "\"");
 
-                    if (system(outputInfo.exePath + " " + outputInfo.commandLine) != CODE_DONE)
-                        throw new Exception("Output hex failed !");
+                    int outExit = runExe("cmd", "/C " + outputInfo.exePath + " " + outputInfo.commandLine, out string _hexOut);
 
-                    log("");
-                    infoWithLable("Hex file path : \"" + outputInfo.outPath + "\"");
+                    if (!string.IsNullOrEmpty(_hexOut.Trim()))
+                    {
+                        log("\r\n" + _hexOut, false);
+                    }
+
+                    if (outExit != CODE_DONE)
+                        throw new Exception("exec command failed !");
+                    
+                    info("\r\nHex file path : \"" + outputInfo.outPath + "\"");
                 }
                 catch (Exception err)
                 {
-                    warn("Output Hex file failed !, msg: " + err.Message);
+                    warn("\r\nOutput Hex file failed !, msg: " + err.Message);
                 }
 
                 resetWorkDir();
@@ -1118,7 +1125,7 @@ namespace ARM_Builder_V6
                 updateDatabase(commands.Keys);
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
-                log("\r\n");
+                log("");
                 doneWithLable("-------------------- Build successfully ! Elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
                     + " --------------------\r\n");
@@ -1223,7 +1230,7 @@ namespace ARM_Builder_V6
             Environment.CurrentDirectory = prevWorkDir;
         }
 
-        static string runExe(string filename, string args, out int exitCode)
+        static int runExe(string filename, string args, out string _output)
         {
             Process process = new Process();
             process.StartInfo.FileName = filename;
@@ -1248,10 +1255,12 @@ namespace ARM_Builder_V6
             process.BeginErrorReadLine();
 
             process.WaitForExit();
-            exitCode = process.ExitCode;
+            int exitCode = process.ExitCode;
             process.Close();
 
-            return output.ToString();
+            _output = output.ToString();
+
+            return exitCode;
         }
 
         struct TaskData
@@ -1285,7 +1294,7 @@ namespace ARM_Builder_V6
 
                         log(" > Compile... " + Path.GetFileName(cmds[index].sourcePath));
 
-                        string output = runExe(cmds[index].exePath, cmds[index].commandLine, out int exitCode);
+                        int exitCode = runExe(cmds[index].exePath, cmds[index].commandLine, out string output);
 
                         lock (Console.Out)
                         {
