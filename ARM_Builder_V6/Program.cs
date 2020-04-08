@@ -976,7 +976,12 @@ namespace ARM_Builder_V6
                 changeWorkDir(binDir);
 
                 log("");
-                infoWithLable("-------------------- Start compilation... --------------------\r\n");
+                infoWithLable("-------------------- Start compilation... --------------------");
+
+                if (commands.Count > 0)
+                {
+                    log("");
+                }
 
                 if (!checkMode(BuilderMode.MULTHREAD) || commands.Values.Count < compileThreshold)
                 {
@@ -1024,7 +1029,7 @@ namespace ARM_Builder_V6
 
                 if (linkerExitCode != CODE_DONE)
                     throw new Exception("Link failed !");
-                
+
                 // print more information
                 if (linkInfo.sourcePath != null && File.Exists(linkInfo.sourcePath))
                 {
@@ -1111,7 +1116,7 @@ namespace ARM_Builder_V6
 
                     if (outExit != CODE_DONE)
                         throw new Exception("exec command failed !");
-                    
+
                     info("\r\nHex file path : \"" + outputInfo.outPath + "\"");
                 }
                 catch (Exception err)
