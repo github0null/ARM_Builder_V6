@@ -286,7 +286,28 @@ namespace ARM_Builder_V6
             return fromModel("asm", null, fpath);
         }
 
-        public CmdInfo genLinkCommand(List<string> objList, out List<string> mapMatcher)
+        public List<string> getMapMatcher()
+        {
+            JObject linkerModel = models["linker"];
+            return linkerModel.ContainsKey("$matcher")
+                ? new List<string>(linkerModel["$matcher"].Values<string>()) : new List<string>();
+        }
+
+        public Regex getRamSizeMatcher()
+        {
+            JObject linkerModel = models["linker"];
+            return linkerModel.ContainsKey("$ramMatcher")
+                ? new Regex(linkerModel["$ramMatcher"].Value<string>(), RegexOptions.IgnoreCase) : null;
+        }
+
+        public Regex getRomSizeMatcher()
+        {
+            JObject linkerModel = models["linker"];
+            return linkerModel.ContainsKey("$romMatcher")
+                ? new Regex(linkerModel["$romMatcher"].Value<string>(), RegexOptions.IgnoreCase) : null;
+        }
+
+        public CmdInfo genLinkCommand(List<string> objList)
         {
             JObject linkerModel = models["linker"];
             JObject linkerParams = paramObj["linker"];
@@ -307,9 +328,6 @@ namespace ARM_Builder_V6
 
             bool mainFirst = linkerModel.ContainsKey("$mainFirst")
                 ? linkerModel["$mainFirst"].Value<bool>() : false;
-
-            mapMatcher = linkerModel.ContainsKey("$matcher")
-                ? new List<string>(linkerModel["$matcher"].Values<string>()) : new List<string>();
 
             string outName = getOutName();
             string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
@@ -745,6 +763,9 @@ namespace ARM_Builder_V6
 
         static readonly string prevWorkDir = Environment.CurrentDirectory;
 
+        static int ramMaxSize = -1;
+        static int romMaxSize = -1;
+
         static string dumpPath;
         static string binDir;
         static int reqThreadsNum;
@@ -808,6 +829,8 @@ namespace ARM_Builder_V6
                 outDir = paramsTable["-o"][0];
                 modeList.Add(BuilderMode.NORMAL);
                 reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
+                ramMaxSize = paramsObj.ContainsKey("ram") ? paramsObj["ram"].Value<int>() : -1;
+                romMaxSize = paramsObj.ContainsKey("rom") ? paramsObj["rom"].Value<int>() : -1;
                 prepareModel();
                 prepareParams(paramsObj);
                 if (paramsTable.ContainsKey("-m"))
@@ -922,7 +945,7 @@ namespace ARM_Builder_V6
                     linkerFiles.Add(libFile);
                 }
 
-                CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles, out List<string> mapRegList);
+                CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
                 CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
 
                 // start build
@@ -1001,7 +1024,12 @@ namespace ARM_Builder_V6
                 {
                     try
                     {
-                        Regex[] regList = mapRegList.ConvertAll((string reg) =>
+                        int ramSize = -1;
+                        int romSize = -1;
+
+                        Regex ramReg = cmdGen.getRamSizeMatcher();
+                        Regex romReg = cmdGen.getRomSizeMatcher();
+                        Regex[] regList = cmdGen.getMapMatcher().ConvertAll((string reg) =>
                         {
                             return new Regex(reg, RegexOptions.IgnoreCase | RegexOptions.Compiled);
                         }).ToArray();
@@ -1011,6 +1039,50 @@ namespace ARM_Builder_V6
                             if (Array.FindIndex(regList, (Regex reg) => { return reg.IsMatch(line); }) != -1)
                             {
                                 log("\r\n" + line.Trim());
+
+                                if (ramSize == -1 && ramReg != null)
+                                {
+                                    Match matcher = ramReg.Match(line);
+                                    if (matcher.Success && matcher.Groups.Count > 1)
+                                    {
+                                        ramSize = int.Parse(matcher.Groups[1].Value);
+                                    }
+                                }
+
+                                if (romSize == -1 && romReg != null)
+                                {
+                                    Match matcher = romReg.Match(line);
+                                    if (matcher.Success && matcher.Groups.Count > 1)
+                                    {
+                                        romSize = int.Parse(matcher.Groups[1].Value);
+                                    }
+                                }
+                            }
+                        }
+
+                        if ((ramMaxSize != -1 && ramSize > 0) || (romMaxSize != -1 && romSize > 0))
+                        {
+                            log("");
+
+                            float sizeKb = 0.0f;
+                            float maxKb = 1.0f;
+
+                            if (ramMaxSize != -1 && ramSize > 0)
+                            {
+                                sizeKb = ramSize / 1024.0f;
+                                maxKb = ramMaxSize / 1024.0f;
+
+                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                                printProgress("\r\nRAM Usage: ", (float)ramSize / ramMaxSize, suffix);
+                            }
+
+                            if (romMaxSize != -1 && romSize > 0)
+                            {
+                                sizeKb = romSize / 1024.0f;
+                                maxKb = romMaxSize / 1024.0f;
+
+                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                                printProgress("\r\nROM Usage: ", (float)romSize / romMaxSize, suffix);
                             }
                         }
                     }
@@ -1085,6 +1157,38 @@ namespace ARM_Builder_V6
         }
 
         //============================================
+
+        static void printProgress(string label, float progress, string suffix = "")
+        {
+            int num = (int)(progress * 10.0f + 0.45f);
+            num = num > 10 ? 10 : num;
+            char[] sBuf = new char[10];
+
+            for (int i = 0; i < 10; i++)
+            {
+                sBuf[i] = ' ';
+            }
+
+            for (int i = 0; i < num; i++)
+            {
+                sBuf[i] = '=';
+            }
+
+            string res = label + "[" + new string(sBuf) + "] " + (progress * 100).ToString("f1") + "% " + suffix;
+
+            if (progress >= 1.0f)
+            {
+                error(res);
+            }
+            else if (progress >= 0.95f)
+            {
+                warn(res);
+            }
+            else
+            {
+                info(res);
+            }
+        }
 
         static int calcuThreads(int threads, int cmdCount)
         {
@@ -1197,7 +1301,7 @@ namespace ARM_Builder_V6
                         lock (doneList)
                         {
                             doneList.Add(cmds[index].sourcePath);
-                        };
+                        }
                     }
 
                     dat._event.Set();

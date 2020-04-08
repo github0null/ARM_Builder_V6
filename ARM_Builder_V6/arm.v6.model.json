@@ -335,6 +335,8 @@
             "$matcher": [
                 "^\\s*total.*size"
             ],
+            "$ramMatcher": "^\\s*Total RW  Size \\(RW Data \\+ ZI Data\\)\\s+(\\d+)",
+            "$romMatcher": "^\\s*Total ROM Size \\(Code \\+ RO Data \\+ RW Data\\)\\s+(\\d+)",
             "$linkMap": {
                 "type": "value",
                 "command": "--list ${mapPath}",
