@@ -17,7 +17,8 @@
             "description": "",
             "group": [
                 "c/cpp",
-                "asm"
+                "asm",
+                "linker"
             ]
         },
         "specific-options": {
@@ -169,7 +170,6 @@
             "$outputSuffix": ".rel",
             "$default": [
                 "-c",
-                "--debug",
                 "--fsigned-char"
             ],
             "$language-c": {
@@ -205,7 +205,6 @@
             "$outputSuffix": ".rel",
             "$default": [
                 "-c",
-                "--debug",
                 "--fsigned-char"
             ]
         },

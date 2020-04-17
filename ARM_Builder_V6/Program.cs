@@ -896,7 +896,14 @@ namespace ARM_Builder_V6
 
                 // =============== Check Compiler Tools ================
 
-                changeWorkDir(binDir);
+                try
+                {
+                    changeWorkDir(binDir);
+                }
+                catch (DirectoryNotFoundException e)
+                {
+                    throw new Exception("Not found toolchain directory !, [path] : \"" + binDir + "\"", e);
+                }
 
                 foreach (var tool in toolPaths)
                 {
