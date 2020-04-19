@@ -825,7 +825,7 @@ namespace ARM_Builder_V6
                 dumpPath = paramsTable["-d"][0];
                 compilerModel = (JObject)JToken.ReadFrom(new JsonTextReader(File.OpenText(paramsTable["-M"][0])));
                 paramsObj = (JObject)JToken.ReadFrom(new JsonTextReader(File.OpenText(paramsTable["-p"][0])));
-                addToSourceList(((JArray)paramsObj["sourceDirs"]).Values<string>());
+                addToSourceList(paramsObj["rootDir"].Value<string>(), paramsObj["sourceList"].Values<string>());
                 outDir = paramsTable["-o"][0];
                 modeList.Add(BuilderMode.NORMAL);
                 reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
@@ -950,6 +950,11 @@ namespace ARM_Builder_V6
                 foreach (var libFile in libList)
                 {
                     linkerFiles.Add(libFile);
+                }
+
+                if (linkerFiles.Count == 0)
+                {
+                    throw new Exception("Not found any source files !, please add source files !");
                 }
 
                 CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
@@ -1686,36 +1691,40 @@ namespace ARM_Builder_V6
             }
         }
 
-        static void addToSourceList(IEnumerable<string> srcDirs)
+        static void addToSourceList(string rootDir, IEnumerable<string> sourceList)
         {
-            foreach (string srcDirPath in srcDirs)
+            foreach (string repath in sourceList)
             {
-                DirectoryInfo dir = new DirectoryInfo(srcDirPath);
-                if (dir.Exists)
+                string sourcePath = repath.StartsWith(".") 
+                    ? (rootDir + Path.DirectorySeparatorChar + repath) : repath;
+                FileInfo file = new FileInfo(sourcePath);
+
+                if (file.Exists)
                 {
-                    foreach (FileInfo file in dir.GetFiles())
+                    if (cFileFilter.IsMatch(file.Name))
                     {
-                        if (cFileFilter.IsMatch(file.Name))
-                        {
-                            cList.Add(file.FullName);
-                        }
-                        else if (cppFileFilter.IsMatch(file.Name))
-                        {
-                            cppList.Add(file.FullName);
-                        }
-                        else if (asmFileFilter.IsMatch(file.Name))
-                        {
-                            asmList.Add(file.FullName);
-                        }
-                        else if (libFileFilter.IsMatch(file.Name))
-                        {
-                            libList.Add(file.FullName);
-                        }
+                        cList.Add(file.FullName);
+                    }
+                    else if (cppFileFilter.IsMatch(file.Name))
+                    {
+                        cppList.Add(file.FullName);
+                    }
+                    else if (asmFileFilter.IsMatch(file.Name))
+                    {
+                        asmList.Add(file.FullName);
+                    }
+                    else if (libFileFilter.IsMatch(file.Name))
+                    {
+                        libList.Add(file.FullName);
+                    }
+                    else
+                    {
+                        warn("Ignore unsupported source file, [path] : \"" + sourcePath + "\"");
                     }
                 }
                 else
                 {
-                    warn("Ignore invalid source dir, [path] : \"" + srcDirPath + "\"");
+                    warn("Ignore invalid source file, [path] : \"" + sourcePath + "\"");
                 }
             }
         }
