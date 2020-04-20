@@ -7,7 +7,9 @@
             "group": [
                 "c/cpp",
                 "asm",
-                "linker"
+                "linker",
+                "elf",
+                "s19"
             ],
             "description": ""
         },
@@ -18,7 +20,9 @@
             "group": [
                 "c/cpp",
                 "asm",
-                "linker"
+                "linker",
+                "elf",
+                "s19"
             ]
         },
         "specific-options": {
@@ -27,7 +31,9 @@
             "group": [
                 "c/cpp",
                 "asm",
-                "linker"
+                "linker",
+                "elf",
+                "s19"
             ]
         },
         "stack-auto": {

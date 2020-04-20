@@ -103,10 +103,13 @@ namespace ARM_Builder_V6
             if (!((JObject)cModel["groups"]).ContainsKey(asmCompilerName))
                 throw new Exception("Invalid '$use' option!，please check compile option 'asm-compiler.$use'");
 
+            if (!((JObject)cModel["groups"]).ContainsKey(linkerName))
+                throw new Exception("Invalid '$use' option!，please check compile option 'linker.$use'");
+
             models.Add("c", (JObject)cModel["groups"][cCompilerName]);
             models.Add("cpp", (JObject)cModel["groups"][cCompilerName]);
             models.Add("asm", (JObject)cModel["groups"][asmCompilerName]);
-            models.Add("linker", (JObject)cModel["groups"]["linker"]);
+            models.Add("linker", (JObject)cModel["groups"][linkerName]);
 
             // init command line from model
             JObject globalParams = paramObj["global"];
@@ -976,7 +979,7 @@ namespace ARM_Builder_V6
                 if (checkMode(BuilderMode.FAST))
                 {
                     doneWithLable("\r\n", true, "Use Fast Build");
-                    info(" > Comparing differences ...");
+                    info(">> Comparing differences ...");
                     CheckDiffRes res = checkDiff(commands);
                     cCount = res.cCount;
                     asmCount = res.asmCount;
@@ -986,11 +989,12 @@ namespace ARM_Builder_V6
                 }
 
                 infoWithLable("-------------------- File statistics --------------------\r\n");
-                log(" > C Files: " + cCount.ToString());
-                log(" > C++ Files: " + cppCount.ToString());
-                log(" > ASM Files: " + asmCount.ToString());
-                log(" > LIB Files: " + libList.Count.ToString());
-                log("\r\n > Source File Totals: " + (cCount + cppCount + asmCount).ToString());
+                log("> C   Files: \t" + cCount.ToString());
+                log("> C++ Files: \t" + cppCount.ToString());
+                log("> ASM Files: \t" + asmCount.ToString());
+                log("> LIB Files: \t" + libList.Count.ToString());
+                log("");
+                log("> Totals: \t" + (cCount + cppCount + asmCount).ToString());
 
                 // switch work directory
                 changeWorkDir(binDir);
@@ -1007,7 +1011,7 @@ namespace ARM_Builder_V6
                 {
                     foreach (var cmdInfo in commands.Values)
                     {
-                        log(" > Compile... " + Path.GetFileName(cmdInfo.sourcePath));
+                        log(">> Compile... " + Path.GetFileName(cmdInfo.sourcePath));
                         if (system(cmdInfo.exePath + " " + cmdInfo.commandLine) != CODE_DONE)
                         {
                             throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\"");
@@ -1036,7 +1040,7 @@ namespace ARM_Builder_V6
 
                     foreach (var lib in libList)
                     {
-                        log(" > Link Lib... " + Path.GetFileName(lib));
+                        log(">> Link Lib... " + Path.GetFileName(lib));
                     }
                 }
 
@@ -1156,7 +1160,7 @@ namespace ARM_Builder_V6
                 log("");
                 doneWithLable("-------------------- Build successfully ! Elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " --------------------\r\n");
+                    + " --------------------\r\n", true, " DONE ");
             }
             catch (Exception err)
             {
@@ -1320,7 +1324,7 @@ namespace ARM_Builder_V6
                             break;
                         }
 
-                        log(" > Compile... " + Path.GetFileName(cmds[index].sourcePath));
+                        log(">> Compile... " + Path.GetFileName(cmds[index].sourcePath));
 
                         int exitCode = runExe(cmds[index].exePath, cmds[index].commandLine, out string output);
 
@@ -1527,7 +1531,7 @@ namespace ARM_Builder_V6
                 List<string> datas = new List<string>();
 
                 // prepare params file
-                string paramsPath = outDir + Path.DirectorySeparatorChar + "ia.params";
+                string paramsPath = outDir + Path.DirectorySeparatorChar + "inc.__ini";
                 datas.Add("[includes]");
                 foreach (var inculdePath in ((JArray)paramsObj["incDirs"]).Values<string>())
                     datas.Add(inculdePath);
@@ -1643,7 +1647,7 @@ namespace ARM_Builder_V6
         {
             // prepare params file
             List<string> datas = new List<string>();
-            string paramsPath = outDir + Path.DirectorySeparatorChar + "ia.params";
+            string paramsPath = outDir + Path.DirectorySeparatorChar + "inc.__ini";
 
             datas.Add("[includes]");
             foreach (var inculdePath in ((JArray)paramsObj["incDirs"]).Values<string>())
