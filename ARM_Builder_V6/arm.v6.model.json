@@ -369,12 +369,12 @@
                 "type": "value",
                 "command": "--scatter ",
                 "description": ""
+            },
+            "$outputBin": {
+                "$path": "ARMCLANG\\bin\\fromelf.exe",
+                "$outputSuffix": ".hex",
+                "command": "--i32combined ${linkerOutput} --output ${output}"
             }
-        },
-        "output": {
-            "$path": "ARMCLANG\\bin\\fromelf.exe",
-            "$outputSuffix": ".hex",
-            "command": "--i32combined ${linkerOutput} --output ${output}"
         }
     }
 }

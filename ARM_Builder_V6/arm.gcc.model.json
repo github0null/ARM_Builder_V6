@@ -198,12 +198,12 @@
             "link-scatter": {
                 "type": "value",
                 "command": "-T "
+            },
+            "$outputBin": {
+                "$path": "bin\\${toolPrefix}objcopy.exe",
+                "$outputSuffix": ".hex",
+                "command": "-O ihex ${linkerOutput} ${output}"
             }
-        },
-        "output": {
-            "$path": "bin\\${toolPrefix}objcopy.exe",
-            "$outputSuffix": ".hex",
-            "command": "-O ihex ${linkerOutput} ${output}"
         }
     }
 }

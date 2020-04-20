@@ -14,7 +14,7 @@ namespace ARM_Builder_V6
 {
     class CmdGenerator
     {
-        public struct CmdInfo
+        public class CmdInfo
         {
             public string exePath;
             public string commandLine;
@@ -415,7 +415,15 @@ namespace ARM_Builder_V6
 
         public CmdInfo genOutputCommand(string linkerOutputFile)
         {
-            JObject outputModel = (JObject)model["groups"]["output"];
+            JObject linkerModel = models["linker"];
+
+            // not need output hex/bin
+            if (!linkerModel.ContainsKey("$outputBin"))
+            {
+                return null;
+            }
+
+            JObject outputModel = (JObject)linkerModel["$outputBin"];
             string hexpath = outDir + Path.DirectorySeparatorChar + getOutName();
 
             if (outputModel.ContainsKey("$outputSuffix"))
@@ -1110,30 +1118,33 @@ namespace ARM_Builder_V6
                     }
                 }
 
-                log("");
-                infoWithLable("-------------------- Start output hex... --------------------");
-
-                try
+                if (outputInfo != null)
                 {
-                    if (!File.Exists(outputInfo.exePath))
-                        throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
-                            + " !, [path] : \"" + outputInfo.exePath + "\"");
+                    log("");
+                    infoWithLable("-------------------- Start output hex... --------------------");
 
-                    int outExit = runExe("cmd", "/C " + outputInfo.exePath + " " + outputInfo.commandLine, out string _hexOut);
-
-                    if (!string.IsNullOrEmpty(_hexOut.Trim()))
+                    try
                     {
-                        log("\r\n" + _hexOut, false);
+                        if (!File.Exists(outputInfo.exePath))
+                            throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
+                                + " !, [path] : \"" + outputInfo.exePath + "\"");
+
+                        int outExit = runExe("cmd", "/C " + outputInfo.exePath + " " + outputInfo.commandLine, out string _hexOut);
+
+                        if (!string.IsNullOrEmpty(_hexOut.Trim()))
+                        {
+                            log("\r\n" + _hexOut, false);
+                        }
+
+                        if (outExit != CODE_DONE)
+                            throw new Exception("exec command failed !");
+
+                        info("\r\nHex file path : \"" + outputInfo.outPath + "\"");
                     }
-
-                    if (outExit != CODE_DONE)
-                        throw new Exception("exec command failed !");
-
-                    info("\r\nHex file path : \"" + outputInfo.outPath + "\"");
-                }
-                catch (Exception err)
-                {
-                    warn("\r\nOutput Hex file failed !, msg: " + err.Message);
+                    catch (Exception err)
+                    {
+                        warn("\r\nOutput Hex file failed !, msg: " + err.Message);
+                    }
                 }
 
                 resetWorkDir();
@@ -1695,7 +1706,7 @@ namespace ARM_Builder_V6
         {
             foreach (string repath in sourceList)
             {
-                string sourcePath = repath.StartsWith(".") 
+                string sourcePath = repath.StartsWith(".")
                     ? (rootDir + Path.DirectorySeparatorChar + repath) : repath;
                 FileInfo file = new FileInfo(sourcePath);
 

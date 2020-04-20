@@ -123,7 +123,7 @@
             "command": {
                 "speed": "--opt-code-speed",
                 "size": "--opt-code-size",
-                "false": "--opt-code-speed"
+                "false": ""
             },
             "group": [
                 "c/cpp",
@@ -228,12 +228,56 @@
             "$objPathSep": " ",
             "$outputSuffix": ".ihx",
             "$output": "-o ${out} ${in}",
+            "$mainFirst": true,
+            "$outputBin": {
+                "$path": "bin\\packihx.exe",
+                "$outputSuffix": ".hex",
+                "command": "${linkerOutput}>${output}"
+            }
+        },
+        "s19": {
+            "$path": "bin\\sdcc.exe",
+            "$invoke": {
+                "useFile": false,
+                "body": "${value}"
+            },
+            "$default": [
+                "--out-fmt-s19"
+            ],
+            "$matcher": [
+                "^\\s+Name",
+                "^\\s+[-\\s]+$",
+                "^\\s+PAGED EXT. RAM",
+                "^\\s+EXTERNAL RAM",
+                "^\\s+ROM/EPROM/FLASH"
+            ],
+            "$mapSuffix": ".mem",
+            "$objPathSep": " ",
+            "$outputSuffix": ".s19",
+            "$output": "-o ${out} ${in}",
             "$mainFirst": true
         },
-        "output": {
-            "$path": "bin\\packihx.exe",
-            "$outputSuffix": ".hex",
-            "command": "${linkerOutput}>${output}"
+        "elf": {
+            "$path": "bin\\sdcc.exe",
+            "$invoke": {
+                "useFile": false,
+                "body": "${value}"
+            },
+            "$default": [
+                "--out-fmt-elf"
+            ],
+            "$matcher": [
+                "^\\s+Name",
+                "^\\s+[-\\s]+$",
+                "^\\s+PAGED EXT. RAM",
+                "^\\s+EXTERNAL RAM",
+                "^\\s+ROM/EPROM/FLASH"
+            ],
+            "$mapSuffix": ".mem",
+            "$objPathSep": " ",
+            "$outputSuffix": ".elf",
+            "$output": "-o ${out} ${in}",
+            "$mainFirst": true
         }
     }
 }

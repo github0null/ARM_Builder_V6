@@ -120,11 +120,11 @@
                 "command": "${mapPath}",
                 "suffix": ")",
                 "description": ""
+            },
+            "$outputBin": {
+                "$path": "BIN\\Ohx51.exe",
+                "command": "${linkerOutput} HEX"
             }
-        },
-        "output": {
-            "$path": "BIN\\Ohx51.exe",
-            "command": "${linkerOutput} HEX"
         }
     }
 }
