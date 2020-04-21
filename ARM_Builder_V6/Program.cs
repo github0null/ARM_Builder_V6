@@ -973,7 +973,7 @@ namespace ARM_Builder_V6
 
                 // start build
                 DateTime time = DateTime.Now;
-                infoWithLable(cmdGen.getModelName() + "\r\n", true, "MODEL");
+                infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
                 infoWithLable("-------------------- Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " --------------------\r\n");
 
                 if (checkMode(BuilderMode.FAST))
