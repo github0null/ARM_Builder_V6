@@ -136,6 +136,28 @@
                 "asm"
             ]
         },
+        "plain-char-is-signed": {
+            "type": "selectable",
+            "command": {
+                "true": "--fsigned-char",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ]
+        },
+        "out-debug-info": {
+            "type": "selectable",
+            "command": {
+                "true": "--debug",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ]
+        },
         "allow-unsafe-read": {
             "type": "selectable",
             "command": {
@@ -175,8 +197,7 @@
             "$output": "-o ${out} ${in}",
             "$outputSuffix": ".rel",
             "$default": [
-                "-c",
-                "--fsigned-char"
+                "-c"
             ],
             "$language-c": {
                 "type": "selectable",
@@ -191,8 +212,7 @@
                     "c2x": "--std-c2x",
                     "sdcc2x": "--std-sdcc2x",
                     "false": "--std-c99"
-                },
-                "description": ""
+                }
             }
         },
         "asm": {
@@ -210,8 +230,7 @@
             "$output": "-o ${out} ${in}",
             "$outputSuffix": ".rel",
             "$default": [
-                "-c",
-                "--fsigned-char"
+                "-c"
             ]
         },
         "linker": {

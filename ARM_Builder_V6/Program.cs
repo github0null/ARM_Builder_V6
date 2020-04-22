@@ -592,24 +592,25 @@ namespace ARM_Builder_V6
 
         private string getCommandValue(JObject option, object value)
         {
-            if (value == null)
-            {
-                return "";
-            }
-
             string type = option["type"].Value<string>();
             switch (type)
             {
                 case "list":
-                    if (!(value is IEnumerable<string>))
+                    if (value != null)
                     {
-                        throw new TypeErrorException("array");
+                        if (!(value is IEnumerable<string>))
+                        {
+                            throw new TypeErrorException("array");
+                        }
                     }
                     break;
                 default:
-                    if (!(value is string))
+                    if (value != null)
                     {
-                        throw new TypeErrorException("string");
+                        if (!(value is string))
+                        {
+                            throw new TypeErrorException("string");
+                        }
                     }
                     break;
             }
@@ -639,6 +640,10 @@ namespace ARM_Builder_V6
             switch (type)
             {
                 case "selectable":
+
+                    if (!option.ContainsKey("command"))
+                        throw new Exception("type \'selectable\' must have \'command\' key !");
+
                     if (value != null && ((JObject)option["command"]).ContainsKey((string)value))
                     {
                         command = option["command"][value].Value<string>();
@@ -649,6 +654,10 @@ namespace ARM_Builder_V6
                     }
                     break;
                 case "keyValue":
+
+                    if (!option.ContainsKey("enum"))
+                        throw new Exception("type \'keyValue\' must have \'enum\' key !");
+
                     if (value != null && ((JObject)option["enum"]).ContainsKey((string)value))
                     {
                         command = option["command"].Value<string>() + option["enum"][value].Value<string>();
@@ -659,17 +668,26 @@ namespace ARM_Builder_V6
                     }
                     break;
                 case "value":
-                    command = option["command"].Value<string>() + toUnixQuotingPath((string)value ?? "", false);
+                    if (value != null)
+                    {
+                        command = option["command"].Value<string>() + toUnixQuotingPath((string)value, false);
+                    }
                     break;
                 case "list":
-                    List<string> cmds = new List<string>() { option["command"].Value<string>() };
-
-                    foreach (var item in (IEnumerable<string>)value)
                     {
-                        cmds.Add(item);
-                    }
+                        List<string> cmdList = new List<string>();
+                        string cmd = option["command"].Value<string>();
 
-                    command = string.Join(" ", cmds.ToArray());
+                        if (value != null)
+                        {
+                            foreach (var item in (IEnumerable<string>)value)
+                            {
+                                cmdList.Add(cmd + item);
+                            }
+                        }
+
+                        command = string.Join(" ", cmdList.ToArray());
+                    }
                     break;
                 default:
                     break;
@@ -834,8 +852,13 @@ namespace ARM_Builder_V6
             {
                 binDir = paramsTable["-b"][0];
                 dumpPath = paramsTable["-d"][0];
-                compilerModel = (JObject)JToken.ReadFrom(new JsonTextReader(File.OpenText(paramsTable["-M"][0])));
-                paramsObj = (JObject)JToken.ReadFrom(new JsonTextReader(File.OpenText(paramsTable["-p"][0])));
+
+                string modelJson = File.ReadAllText(paramsTable["-M"][0]);
+                compilerModel = (JObject)JToken.Parse(modelJson);
+
+                string paramsJson = File.ReadAllText(paramsTable["-p"][0]);
+                paramsObj = (JObject)JToken.Parse(paramsJson);
+
                 addToSourceList(paramsObj["rootDir"].Value<string>(), paramsObj["sourceList"].Values<string>());
                 outDir = paramsTable["-o"][0];
                 modeList.Add(BuilderMode.NORMAL);
@@ -861,7 +884,7 @@ namespace ARM_Builder_V6
             }
             catch (Exception err)
             {
-                errorWithLable("Init params failed !, " + err.Message + "\r\n");
+                errorWithLable("Init build failed !, " + err.Message + "\r\n");
                 return CODE_ERR;
             }
 

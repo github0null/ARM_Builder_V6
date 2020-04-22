@@ -66,11 +66,12 @@
     <None Include="sdcc.model.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Include="stm8.iar.model.json" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" sdcc_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" />
+      <UserProperties sdcc_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" stm8_1iar_1model_1json__JSONSchema="http://json.schemastore.org/chutzpah" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>
