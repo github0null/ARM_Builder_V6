@@ -121,6 +121,19 @@
                 "suffix": ")",
                 "description": ""
             },
+            "remove-unused": {
+                "type": "selectable",
+                "command": {
+                    "true": "REMOVEUNUSED",
+                    "false": ""
+                }
+            },
+            "disable-warnings": {
+                "type": "value",
+                "prefix": "DISABLEWARNING(",
+                "suffix": ")",
+                "command": ""
+            },
             "$outputBin": {
                 "$path": "BIN\\Ohx51.exe",
                 "command": "${linkerOutput} HEX"

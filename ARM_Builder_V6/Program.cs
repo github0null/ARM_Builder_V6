@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -636,7 +635,7 @@ namespace ARM_Builder_V6
                 suffix = "";
             }
 
-            string command = "";
+            string command = null;
             switch (type)
             {
                 case "selectable":
@@ -684,14 +683,17 @@ namespace ARM_Builder_V6
                             {
                                 cmdList.Add(cmd + item);
                             }
-                        }
 
-                        command = string.Join(" ", cmdList.ToArray());
+                            command = string.Join(" ", cmdList.ToArray());
+                        }
                     }
                     break;
                 default:
                     break;
             }
+
+            if (command == null)
+                return "";
 
             return prefix + command + suffix;
         }
@@ -1035,9 +1037,10 @@ namespace ARM_Builder_V6
                     foreach (var cmdInfo in commands.Values)
                     {
                         log(">> Compile... " + Path.GetFileName(cmdInfo.sourcePath));
-                        if (system(cmdInfo.exePath + " " + cmdInfo.commandLine) != CODE_DONE)
+                        int eCode = system(cmdInfo.exePath + " " + cmdInfo.commandLine);
+                        if (eCode != CODE_DONE)
                         {
-                            throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\"");
+                            throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\", Exit Code: " + eCode.ToString());
                         }
                         doneList.Add(cmdInfo.sourcePath);
                     }
@@ -1075,7 +1078,7 @@ namespace ARM_Builder_V6
                 }
 
                 if (linkerExitCode != CODE_DONE)
-                    throw new Exception("Link failed !");
+                    throw new Exception("Link failed !, Exit Code: " + linkerExitCode.ToString());
 
                 // print more information
                 if (linkInfo.sourcePath != null && File.Exists(linkInfo.sourcePath))
@@ -1164,7 +1167,7 @@ namespace ARM_Builder_V6
                         }
 
                         if (outExit != CODE_DONE)
-                            throw new Exception("exec command failed !");
+                            throw new Exception("exec command failed !, Exit Code: " + outExit.ToString());
 
                         info("\r\nHex file path : \"" + outputInfo.outPath + "\"");
                     }
@@ -1358,7 +1361,7 @@ namespace ARM_Builder_V6
 
                         if (exitCode != CODE_DONE)
                         {
-                            err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\"");
+                            err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\", Exit Code: " + exitCode.ToString());
                             break;
                         }
 
