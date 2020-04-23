@@ -260,6 +260,16 @@
                 "command": "${linkerOutput}>${output}"
             }
         },
+        "linker-lib": {
+            "$path": "bin\\sdar.exe",
+            "$invoke": {
+                "useFile": false,
+                "body": "${value}"
+            },
+            "$objPathSep": " ",
+            "$outputSuffix": ".lib",
+            "$output": "-rcv ${out} ${in}"
+        },
         "s19": {
             "$path": "bin\\sdcc.exe",
             "$invoke": {

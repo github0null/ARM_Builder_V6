@@ -59,7 +59,7 @@
                     "SMALL": "SMALL",
                     "COMPACT": "COMPACT",
                     "LARGE": "LARGE",
-                    "false": "LARGE"
+                    "false": "SMALL"
                 },
                 "description": ""
             },
@@ -138,6 +138,17 @@
                 "$path": "BIN\\Ohx51.exe",
                 "command": "${linkerOutput} HEX"
             }
+        },
+        "linker-lib": {
+            "$path": "BIN\\LIBX51.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "ADD ${in} TO ${out}",
+            "$objPathSep": ",",
+            "$outputSuffix": ".LIB",
+            "$commandLocation": "end"
         }
     }
 }

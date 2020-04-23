@@ -669,6 +669,7 @@ namespace ARM_Builder_V6
                 case "value":
                     if (value != null)
                     {
+                        // set commmand, convert '\\' -> '/'
                         command = option["command"].Value<string>() + toUnixQuotingPath((string)value, false);
                     }
                     break;
@@ -689,7 +690,7 @@ namespace ARM_Builder_V6
                     }
                     break;
                 default:
-                    break;
+                    throw new Exception("Invalid type \"" + type + "\"");
             }
 
             if (command == null)
@@ -782,7 +783,7 @@ namespace ARM_Builder_V6
         // file filters
         static readonly Regex cFileFilter = new Regex(@"\.c$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex asmFileFilter = new Regex(@"\.(?:s|asm|a51)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static readonly Regex libFileFilter = new Regex(@"\.lib$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex libFileFilter = new Regex(@"\.(?:lib|a)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex cppFileFilter = new Regex(@"\.(?:cpp|cxx|cc|c\+\+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         static readonly Regex enterReg = new Regex(@"\r\n|\n", RegexOptions.Compiled);

@@ -312,6 +312,15 @@
                 "$outputSuffix": ".hex",
                 "command": "--i32combined ${linkerOutput} --output ${output}"
             }
+        },
+        "linker-lib": {
+            "$path": "ARMCC\\bin\\armar.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "--Via ${value}"
+            },
+            "$output": "-rcv ${out} ${in}",
+            "$outputSuffix": ".lib"
         }
     }
 }

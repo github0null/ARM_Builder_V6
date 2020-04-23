@@ -204,6 +204,15 @@
                 "$outputSuffix": ".hex",
                 "command": "-O ihex ${linkerOutput} ${output}"
             }
+        },
+        "linker-lib": {
+            "$path": "bin\\${toolPrefix}ar.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "-rcv ${out} ${in}",
+            "$outputSuffix": ".a"
         }
     }
 }
