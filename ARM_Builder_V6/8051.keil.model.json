@@ -121,6 +121,15 @@
                 "suffix": ")",
                 "description": ""
             },
+            "use-RTX": {
+                "type": "selectable",
+                "command": {
+                    "RTX-Full": "RTX51",
+                    "RTX-Tiny": "Rtx51Tiny",
+                    "None": "",
+                    "false": ""
+                }
+            },
             "remove-unused": {
                 "type": "selectable",
                 "command": {
