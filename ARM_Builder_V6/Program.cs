@@ -532,17 +532,22 @@ namespace ARM_Builder_V6
                 commands.Add(outputFormat.Replace("${out}", toUnixQuotingPath(outPath, isQuote)));
             }
 
-            // delete whitespace
-            commands.RemoveAll(delegate (string _command) { return string.IsNullOrEmpty(_command); });
-
             // delete exclude commands
             if (excludeList != null)
             {
-                foreach (var item in excludeList)
+                foreach (string item in excludeList)
                 {
-                    commands.Remove(item);
+                    Regex reg = new Regex("(?<!\\w|-)" + item + "(?!\\w|-)", RegexOptions.Compiled);
+
+                    for (int i = 0; i < commands.Count; i++)
+                    {
+                        commands[i] = reg.Replace(commands[i], "");
+                    }
                 }
             }
+
+            // delete whitespace
+            commands.RemoveAll(delegate (string _command) { return string.IsNullOrEmpty(_command); });
 
             string commandLines = string.Join(" ", commands.ToArray());
             
