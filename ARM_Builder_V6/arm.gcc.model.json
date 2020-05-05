@@ -112,7 +112,8 @@
                     "gnu99": "gnu99",
                     "gnu11": "gnu11",
                     "gnu1x": "gnu1x"
-                }
+                },
+                "exclude": [ "-fno-rtti" ]
             },
             "$language-cpp": {
                 "type": "keyValue",

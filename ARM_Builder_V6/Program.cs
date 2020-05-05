@@ -503,11 +503,13 @@ namespace ARM_Builder_V6
             string langOption = null;
 
             List<string> commands = new List<string>();
+            IEnumerable<string> excludeList = null;
 
-            if (langName != null && cParams.ContainsKey(langName) && cModel.ContainsKey("$" + langName))
+            if (langName != null && cModel.ContainsKey("$" + langName))
             {
-                langOption = cParams[langName].Value<string>();
+                langOption = cParams.ContainsKey(langName) ? cParams[langName].Value<string>() : "default";
                 commands.Add(getCommandValue((JObject)cModel["$" + langName], langOption));
+                excludeList = ((JObject)cModel["$" + langName]).ContainsKey("exclude") ? cModel["$" + langName]["exclude"].Values<string>() : null;
             }
 
             if (cModel.ContainsKey("$listPath"))
@@ -530,22 +532,31 @@ namespace ARM_Builder_V6
                 commands.Add(outputFormat.Replace("${out}", toUnixQuotingPath(outPath, isQuote)));
             }
 
-            string commandLine = null;
+            // delete whitespace
+            commands.RemoveAll(delegate (string _command) { return string.IsNullOrEmpty(_command); });
+
+            // delete exclude commands
+            if (excludeList != null)
+            {
+                foreach (var item in excludeList)
+                {
+                    commands.Remove(item);
+                }
+            }
+
+            string commandLines = string.Join(" ", commands.ToArray());
+            
             if (iFormat.useFile)
             {
                 FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + paramsSuffix);
-                File.WriteAllText(paramFile.FullName, string.Join(" ", commands.ToArray()), encodings[modelName]);
-                commandLine = iFormat.body.Replace("${value}", "\"" + paramFile.FullName + "\"");
-            }
-            else
-            {
-                commandLine = string.Join(" ", commands.ToArray());
+                File.WriteAllText(paramFile.FullName, commandLines, encodings[modelName]);
+                commandLines = iFormat.body.Replace("${value}", "\"" + paramFile.FullName + "\"");
             }
 
             return new CmdInfo
             {
                 exePath = getToolPath(modelName),
-                commandLine = commandLine,
+                commandLine = commandLines,
                 sourcePath = fpath,
                 outPath = outPath
             };

@@ -11,8 +11,7 @@
                 "c/cpp",
                 "asm",
                 "linker"
-            ],
-            "description": ""
+            ]
         },
         "microcontroller-cpu": {
             "type": "keyValue",
@@ -31,8 +30,7 @@
                 "c/cpp",
                 "asm",
                 "linker"
-            ],
-            "description": ""
+            ]
         },
         "execute-only-code": {
             "type": "selectable",
@@ -43,8 +41,7 @@
             "group": [
                 "c/cpp",
                 "asm"
-            ],
-            "description": ""
+            ]
         },
         "read-only-position-independent": {
             "type": "selectable",
@@ -55,8 +52,7 @@
             "group": [
                 "c/cpp",
                 "asm"
-            ],
-            "description": ""
+            ]
         },
         "read-write-position-independent": {
             "type": "selectable",
@@ -67,8 +63,7 @@
             "group": [
                 "c/cpp",
                 "asm"
-            ],
-            "description": ""
+            ]
         },
         "split-load-and-store-multiple": {
             "type": "selectable",
@@ -79,8 +74,7 @@
             "group": [
                 "c/cpp",
                 "asm"
-            ],
-            "description": ""
+            ]
         }
     },
     "groups": {
@@ -107,8 +101,7 @@
                 "command": "",
                 "enum": {
                     "default": ""
-                },
-                "description": ""
+                }
             },
             "$language-cpp": {
                 "type": "keyValue",
@@ -116,23 +109,21 @@
                 "enum": {
                     "default": ""
                 },
-                "description": ""
+                "exclude": [ "--gnu", "--c99" ]
             },
             "c99-mode": {
                 "type": "selectable",
                 "command": {
                     "true": "--c99",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "use-microLIB": {
                 "type": "selectable",
                 "command": {
                     "true": "-D__MICROLIB",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "optimization": {
                 "type": "keyValue",
@@ -143,56 +134,49 @@
                     "level-1": "-O1",
                     "level-2": "-O2",
                     "level-3": "-O3"
-                },
-                "description": ""
+                }
             },
             "optimize-for-time": {
                 "type": "selectable",
                 "command": {
                     "true": "-Otime",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "one-elf-section-per-function": {
                 "type": "selectable",
                 "command": {
                     "true": "--split_sections",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "strict-ANSI-C": {
                 "type": "selectable",
                 "command": {
                     "true": "--strict",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "enum-container-always-int": {
                 "type": "selectable",
                 "command": {
                     "true": "--enum_is_int",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "plain-char-is-signed": {
                 "type": "selectable",
                 "command": {
                     "true": "--signed_chars",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "gnu-extensions": {
                 "type": "selectable",
                 "command": {
                     "true": "--gnu",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "warnings": {
                 "type": "keyValue",
@@ -202,8 +186,7 @@
                     "unspecified": "",
                     "no-warnings": "-W",
                     "all-warnings": ""
-                },
-                "description": ""
+                }
             }
         },
         "asm": {

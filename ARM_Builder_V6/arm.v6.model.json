@@ -103,8 +103,7 @@
                     "gnu99": "gnu99",
                     "c11": "c11",
                     "gnu11": "gnu11"
-                },
-                "description": ""
+                }
             },
             "$language-cpp": {
                 "type": "keyValue",
@@ -117,24 +116,21 @@
                     "gnu++11": "gnu++11",
                     "c++03": "c++03",
                     "c++14": "c++14"
-                },
-                "description": ""
+                }
             },
             "use-microLIB": {
                 "type": "selectable",
                 "command": {
                     "true": "-D__MICROLIB",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "execute-only-code": {
                 "type": "selectable",
                 "command": {
                     "true": "-mexecute-only",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "optimization": {
                 "type": "keyValue",
@@ -148,80 +144,70 @@
                     "level-fast": "-Ofast",
                     "level-balanced": "-Os",
                     "level-image-size": "-Oz"
-                },
-                "description": ""
+                }
             },
             "link-time-optimization": {
                 "type": "selectable",
                 "command": {
                     "true": "-flto",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "split-load-and-store-multiple": {
                 "type": "selectable",
                 "command": {
                     "true": "-ldm-stm",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "one-elf-section-per-function": {
                 "type": "selectable",
                 "command": {
                     "true": "-ffunction-sections",
                     "false": "-fno-function-sections"
-                },
-                "description": ""
+                }
             },
             "turn-Warning-into-errors": {
                 "type": "selectable",
                 "command": {
                     "true": "-Werror",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "plain-char-is-signed": {
                 "type": "selectable",
                 "command": {
                     "true": "-fsigned-char",
                     "false": "-funsigned-char"
-                },
-                "description": ""
+                }
             },
             "read-only-position-independent": {
                 "type": "selectable",
                 "command": {
                     "true": "-fropi",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "read-write-position-independent": {
                 "type": "selectable",
                 "command": {
                     "true": "-frwpi",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "short-enums#wchar": {
                 "type": "selectable",
                 "command": {
                     "true": "-fshort-enums -fshort-wchar",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "use-rtti": {
                 "type": "selectable",
                 "command": {
                     "true": "",
                     "false": "-fno-rtti"
-                },
-                "description": ""
+                }
             },
             "warnings": {
                 "type": "keyValue",
@@ -233,8 +219,7 @@
                     "all-warnings": "-Weverything -Wno-packed -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality",
                     "ac5-like-warnings": "-Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality",
                     "misra-compatible": "-Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-covered-switch-default -Wno-unreachable-code-break"
-                },
-                "description": ""
+                }
             }
         },
         "asm": {
