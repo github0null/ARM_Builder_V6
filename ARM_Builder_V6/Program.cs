@@ -11,6 +11,23 @@ using System.Threading;
 
 namespace ARM_Builder_V6
 {
+    class Utility
+    {
+        public delegate TargetType MapCallBk<Type, TargetType>(Type element);
+
+        public static TargetType[] map<Type, TargetType>(IEnumerable<Type> iterator, MapCallBk<Type, TargetType> callBk)
+        {
+            List<TargetType> res = new List<TargetType>(16);
+
+            foreach (var item in iterator)
+            {
+                res.Add(callBk(item));
+            }
+
+            return res.ToArray();
+        }
+    }
+
     class CmdGenerator
     {
         public class GeneratorOption
@@ -769,19 +786,9 @@ namespace ARM_Builder_V6
             JObject cmpModel = models[modelName];
             CmdFormat incFormat = formats[modelName]["$includes"];
 
-            if (incFormat.noQuotes)
+            foreach (var inculdePath in incList)
             {
-                foreach (var inculdePath in incList)
-                {
-                    cmds.Add(incFormat.body.Replace("${value}", inculdePath));
-                }
-            }
-            else
-            {
-                foreach (var inculdePath in incList)
-                {
-                    cmds.Add(incFormat.body.Replace("${value}", toUnixQuotingPath(inculdePath)));
-                }
+                cmds.Add(incFormat.body.Replace("${value}", toUnixQuotingPath(inculdePath, !incFormat.noQuotes)));
             }
 
             return incFormat.prefix + string.Join(incFormat.sep, cmds.ToArray()) + incFormat.suffix;
@@ -865,6 +872,8 @@ namespace ARM_Builder_V6
         static JObject paramsObj;
         static string outDir;
         static string projectRoot;
+
+        static bool ignoreNormalOut = false;
 
         static HashSet<BuilderMode> modeList = new HashSet<BuilderMode>();
 
@@ -970,6 +979,9 @@ namespace ARM_Builder_V6
                     outpath = outDir,
                     cwd = projectRoot
                 });
+
+                // ingnore keil normal output
+                ignoreNormalOut = Regex.IsMatch(cmdGen.getModelName(), @"keil", RegexOptions.IgnoreCase);
 
                 // add env path for tasks
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
@@ -1120,12 +1132,10 @@ namespace ARM_Builder_V6
                         log(">> Compile... " + Path.GetFileName(cmdInfo.sourcePath));
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
-                        if (!ccOut.TrimEnd().EndsWith("\n"))
+                        if (exitCode != CODE_DONE || !ignoreNormalOut)
                         {
-                            ccOut += "\r\n";
+                            Console.Write(ccOut);
                         }
-
-                        Console.Write(ccOut);
 
                         if (exitCode != CODE_DONE)
                         {
@@ -1479,7 +1489,10 @@ namespace ARM_Builder_V6
 
                         lock (Console.Out)
                         {
-                            Console.Write(output);
+                            if (exitCode != CODE_DONE || !ignoreNormalOut)
+                            {
+                                Console.Write(output);
+                            }
                         }
 
                         if (exitCode != CODE_DONE)
