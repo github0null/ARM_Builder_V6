@@ -472,7 +472,12 @@ namespace ARM_Builder_V6
 
         public string getToolPath(string name)
         {
-            return binDir + models[name]["$path"].Value<string>().Replace("${toolPrefix}", toolPrefix);
+            return binDir + getOriginalToolPath(name);
+        }
+
+        public string getOriginalToolPath(string name)
+        {
+            return models[name]["$path"].Value<string>().Replace("${toolPrefix}", toolPrefix);
         }
 
         public void traverseCommands(CmdVisitor visitor)
@@ -961,20 +966,20 @@ namespace ARM_Builder_V6
                 Directory.CreateDirectory(outDir);
                 CmdGenerator cmdGen = new CmdGenerator(compilerModel, paramsObj, new CmdGenerator.GeneratorOption
                 {
-                    bindir = "%BIN_DIR%",
+                    bindir = "%TOOL_DIR%",
                     outpath = outDir,
                     cwd = projectRoot
                 });
 
                 // add env path for tasks
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
+                string ccPath = binDir + Path.DirectorySeparatorChar + cmdGen.getOriginalToolPath("c");
                 tasksEnv.Add(new Regex(@"\$\{TargetName\}", RegexOptions.IgnoreCase), cmdGen.getOutName());
                 tasksEnv.Add(new Regex(@"\$\{ExeDir\}", RegexOptions.IgnoreCase), Path.GetDirectoryName(exePath));
-                tasksEnv.Add(new Regex(@"\$\{BinDir\}", RegexOptions.IgnoreCase), binDir);
+                tasksEnv.Add(new Regex(@"\$\{ToolDir\}", RegexOptions.IgnoreCase), binDir);
                 tasksEnv.Add(new Regex(@"\$\{OutDir\}", RegexOptions.IgnoreCase), outDir);
-                tasksEnv.Add(new Regex(@"\$\{CompileToolDir\}", RegexOptions.IgnoreCase),
-                    Path.GetDirectoryName(cmdGen.getToolPath("linker")));
                 tasksEnv.Add(new Regex(@"\$\{toolPrefix\}", RegexOptions.IgnoreCase), cmdGen.getToolPrefix());
+                tasksEnv.Add(new Regex(@"\$\{CompileToolDir\}", RegexOptions.IgnoreCase), Path.GetDirectoryName(ccPath));
 
                 if (checkMode(BuilderMode.DEBUG))
                 {
@@ -1004,7 +1009,7 @@ namespace ARM_Builder_V6
 
                 try
                 {
-                    setEnvValue("BIN_DIR", binDir);
+                    setEnvValue("TOOL_DIR", binDir);
                 }
                 catch (Exception e)
                 {
@@ -1113,11 +1118,20 @@ namespace ARM_Builder_V6
                     foreach (var cmdInfo in commands.Values)
                     {
                         log(">> Compile... " + Path.GetFileName(cmdInfo.sourcePath));
-                        int eCode = system(cmdInfo.exePath + " " + cmdInfo.commandLine);
-                        if (eCode != CODE_DONE)
+                        int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
+
+                        if (!ccOut.TrimEnd().EndsWith("\n"))
                         {
-                            throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\", Exit Code: " + eCode.ToString());
+                            ccOut += "\r\n";
                         }
+
+                        Console.Write(ccOut);
+
+                        if (exitCode != CODE_DONE)
+                        {
+                            throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\", Exit Code: " + exitCode.ToString());
+                        }
+
                         doneList.Add(cmdInfo.sourcePath);
                     }
                 }
@@ -1236,7 +1250,7 @@ namespace ARM_Builder_V6
                         //        + " !, [path] : \"" + outputInfo.exePath + "\"");
 
                         // must use 'cmd', because SDCC has '>' command
-                        int outExit = runExe("cmd", "/C " + outputInfo.exePath + " " + outputInfo.commandLine, out string _hexOut);
+                        int outExit = runExe("cmd", "/C \"\"" + outputInfo.exePath + "\" " + outputInfo.commandLine + "\"", out string _hexOut);
 
                         if (!string.IsNullOrEmpty(_hexOut.Trim()))
                         {
