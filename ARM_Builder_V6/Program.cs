@@ -13,20 +13,27 @@ namespace ARM_Builder_V6
 {
     class CmdGenerator
     {
+        public class GeneratorOption
+        {
+            public string bindir;
+            public string outpath;
+            public string cwd;
+        };
+
         public class CmdInfo
         {
             public string exePath;
             public string commandLine;
             public string sourcePath;
             public string outPath;
-        }
+        };
 
         class TypeErrorException : Exception
         {
             public TypeErrorException(string msg) : base(msg)
             {
             }
-        }
+        };
 
         public delegate void CmdVisitor(string key, string cmdLine);
 
@@ -70,17 +77,20 @@ namespace ARM_Builder_V6
 
         private readonly string outDir;
         private readonly string binDir;
+        private readonly string cwd;
+
         private readonly JObject model;
         private readonly JObject parameters;
 
         private readonly Dictionary<string, int> objNameMap = new Dictionary<string, int>();
 
-        public CmdGenerator(JObject cModel, JObject cParams, string bindir, string outpath)
+        public CmdGenerator(JObject cModel, JObject cParams, GeneratorOption option)
         {
             model = cModel;
             parameters = cParams;
-            outDir = outpath;
-            binDir = bindir;
+            outDir = option.outpath;
+            binDir = option.bindir != null ? (option.bindir + Path.DirectorySeparatorChar) : "";
+            cwd = option.cwd;
 
             useUnixPath = cModel.ContainsKey("useUnixPath") ? cModel["useUnixPath"].Value<bool>() : false;
 
@@ -455,15 +465,14 @@ namespace ARM_Builder_V6
             return parameters.ContainsKey("name") ? parameters["name"].Value<string>() : "main";
         }
 
-        public string getToolPathByRePath(string rePath)
+        private string getToolPathByRePath(string rePath)
         {
-            return binDir + Path.DirectorySeparatorChar + rePath.Replace("${toolPrefix}", toolPrefix);
+            return binDir + rePath.Replace("${toolPrefix}", toolPrefix);
         }
 
         public string getToolPath(string name)
         {
-            return binDir + Path.DirectorySeparatorChar
-                + models[name]["$path"].Value<string>().Replace("${toolPrefix}", toolPrefix);
+            return binDir + models[name]["$path"].Value<string>().Replace("${toolPrefix}", toolPrefix);
         }
 
         public void traverseCommands(CmdVisitor visitor)
@@ -550,7 +559,7 @@ namespace ARM_Builder_V6
             commands.RemoveAll(delegate (string _command) { return string.IsNullOrEmpty(_command); });
 
             string commandLines = string.Join(" ", commands.ToArray());
-            
+
             if (iFormat.useFile)
             {
                 FileInfo paramFile = new FileInfo(outDir + Path.DirectorySeparatorChar + fName + paramsSuffix);
@@ -567,8 +576,36 @@ namespace ARM_Builder_V6
             };
         }
 
+        private string toRelative(string root, string absPath)
+        {
+            if (root.Length >= absPath.Length)
+            {
+                return null;
+            }
+
+            root = root.Replace('\\', '/');
+            absPath = absPath.Replace('\\', '/');
+
+            if (absPath.StartsWith(root))
+            {
+                string prefix = "." + (root.EndsWith("/") ? "/" : "");
+                return (prefix + absPath.Substring(root.Length)).Replace('/', Path.DirectorySeparatorChar);
+            }
+
+            return null;
+        }
+
         private string toUnixQuotingPath(string path, bool quote = true)
         {
+            if (cwd != null)
+            {
+                string rePath = toRelative(cwd, path);
+                if (rePath != null)
+                {
+                    path = rePath;
+                }
+            }
+
             if (useUnixPath)
             {
                 return (quote && path.Contains(" ")) ? ("\"" + path.Replace("\\", "/") + "\"") : path.Replace("\\", "/");
@@ -686,7 +723,8 @@ namespace ARM_Builder_V6
                     if (value != null)
                     {
                         // set commmand, convert '\\' -> '/'
-                        command = option["command"].Value<string>() + toUnixQuotingPath((string)value, false);
+                        string nValue = useUnixPath ? ((string)value).Replace('\\', '/') : (string)value;
+                        command = option["command"].Value<string>() + nValue;
                     }
                     break;
                 case "list":
@@ -809,7 +847,8 @@ namespace ARM_Builder_V6
         static readonly List<string> asmList = new List<string>();
         static readonly List<string> libList = new List<string>();
 
-        static readonly string prevWorkDir = Environment.CurrentDirectory;
+        static readonly string defWorkDir = Environment.CurrentDirectory;
+        static readonly Dictionary<string, string> envMapper = new Dictionary<string, string>();
 
         static int ramMaxSize = -1;
         static int romMaxSize = -1;
@@ -820,6 +859,8 @@ namespace ARM_Builder_V6
         static JObject compilerModel;
         static JObject paramsObj;
         static string outDir;
+        static string projectRoot;
+
         static HashSet<BuilderMode> modeList = new HashSet<BuilderMode>();
 
         [DllImport("msvcrt.dll", SetLastError = false, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
@@ -878,14 +919,17 @@ namespace ARM_Builder_V6
                 string paramsJson = File.ReadAllText(paramsTable["-p"][0]);
                 paramsObj = (JObject)JToken.Parse(paramsJson);
 
-                addToSourceList(paramsObj["rootDir"].Value<string>(), paramsObj["sourceList"].Values<string>());
+                projectRoot = paramsObj["rootDir"].Value<string>();
+                addToSourceList(projectRoot, paramsObj["sourceList"].Values<string>());
                 outDir = paramsTable["-o"][0];
                 modeList.Add(BuilderMode.NORMAL);
                 reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
                 ramMaxSize = paramsObj.ContainsKey("ram") ? paramsObj["ram"].Value<int>() : -1;
                 romMaxSize = paramsObj.ContainsKey("rom") ? paramsObj["rom"].Value<int>() : -1;
+
                 prepareModel();
                 prepareParams(paramsObj);
+
                 if (paramsTable.ContainsKey("-m"))
                 {
                     foreach (var modeStr in paramsTable["-m"][0].Split('-'))
@@ -915,7 +959,12 @@ namespace ARM_Builder_V6
             try
             {
                 Directory.CreateDirectory(outDir);
-                CmdGenerator cmdGen = new CmdGenerator(compilerModel, paramsObj, ".", outDir);
+                CmdGenerator cmdGen = new CmdGenerator(compilerModel, paramsObj, new CmdGenerator.GeneratorOption
+                {
+                    bindir = "%BIN_DIR%",
+                    outpath = outDir,
+                    cwd = projectRoot
+                });
 
                 // add env path for tasks
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
@@ -924,7 +973,7 @@ namespace ARM_Builder_V6
                 tasksEnv.Add(new Regex(@"\$\{BinDir\}", RegexOptions.IgnoreCase), binDir);
                 tasksEnv.Add(new Regex(@"\$\{OutDir\}", RegexOptions.IgnoreCase), outDir);
                 tasksEnv.Add(new Regex(@"\$\{CompileToolDir\}", RegexOptions.IgnoreCase),
-                    Path.GetDirectoryName(binDir + Path.DirectorySeparatorChar + cmdGen.getToolPath("linker")));
+                    Path.GetDirectoryName(cmdGen.getToolPath("linker")));
                 tasksEnv.Add(new Regex(@"\$\{toolPrefix\}", RegexOptions.IgnoreCase), cmdGen.getToolPrefix());
 
                 if (checkMode(BuilderMode.DEBUG))
@@ -947,26 +996,34 @@ namespace ARM_Builder_V6
                 toolPaths.Add("ASM Compiler", cmdGen.getToolPath("asm"));
                 toolPaths.Add("ARM Linker", cmdGen.getToolPath("linker"));
 
-                // =============== Check Compiler Tools ================
+                // Check Compiler Tools
+                if (!Directory.Exists(binDir))
+                {
+                    throw new Exception("Not found toolchain directory !, [path] : \"" + binDir + "\"");
+                }
 
                 try
                 {
-                    changeWorkDir(binDir);
+                    setEnvValue("BIN_DIR", binDir);
                 }
-                catch (DirectoryNotFoundException e)
+                catch (Exception e)
                 {
-                    throw new Exception("Not found toolchain directory !, [path] : \"" + binDir + "\"", e);
+                    throw new Exception("Set Environment Failed !, [path] : \"" + binDir + "\"", e);
                 }
 
-                foreach (var tool in toolPaths)
-                {
-                    if (!File.Exists(tool.Value))
-                        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
-                }
+                // check compiler path
+                //foreach (var tool in toolPaths)
+                //{
+                //    if (!File.Exists(tool.Value))
+                //        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
+                //}
 
                 //========================================================
 
                 log("");
+
+                // switch to project root directory
+                switchWorkDir(projectRoot);
 
                 // run tasks before build
                 if (runTasks("Run Tasks Before Build", "beforeBuildTasks", tasksEnv, true) != CODE_DONE)
@@ -974,6 +1031,7 @@ namespace ARM_Builder_V6
                     throw new Exception("Run Tasks Failed !, Stop Build !");
                 }
 
+                // reset work directory
                 resetWorkDir();
 
                 foreach (var cFile in cList)
@@ -1007,13 +1065,13 @@ namespace ARM_Builder_V6
 
                 if (linkerFiles.Count == 0)
                 {
-                    throw new Exception("Not found any source files !, please add source files !");
+                    throw new Exception("Not found any source files !, please add some source files !");
                 }
 
                 CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
                 CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
 
-                // start build
+                // prepare build
                 DateTime time = DateTime.Now;
                 infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
                 infoWithLable("-------------------- Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " --------------------\r\n");
@@ -1038,8 +1096,9 @@ namespace ARM_Builder_V6
                 log("");
                 log("> Totals: \t" + (cCount + cppCount + asmCount).ToString());
 
-                // switch work directory
-                changeWorkDir(binDir);
+                // build start
+
+                switchWorkDir(projectRoot);
 
                 log("");
                 infoWithLable("-------------------- Start compilation... --------------------");
@@ -1074,8 +1133,8 @@ namespace ARM_Builder_V6
                 log("");
                 infoWithLable("-------------------- Start link... --------------------");
 
-                if (!File.Exists(linkInfo.exePath))
-                    throw new Exception("Not found linker !, [path] : \"" + linkInfo.exePath + "\"");
+                //if (!File.Exists(linkInfo.exePath))
+                //    throw new Exception("Not found linker !, [path] : \"" + linkInfo.exePath + "\"");
 
                 if (libList.Count > 0)
                 {
@@ -1172,10 +1231,11 @@ namespace ARM_Builder_V6
 
                     try
                     {
-                        if (!File.Exists(outputInfo.exePath))
-                            throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
-                                + " !, [path] : \"" + outputInfo.exePath + "\"");
+                        //if (!File.Exists(outputInfo.exePath))
+                        //    throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
+                        //        + " !, [path] : \"" + outputInfo.exePath + "\"");
 
+                        // must use 'cmd', because SDCC has '>' command
                         int outExit = runExe("cmd", "/C " + outputInfo.exePath + " " + outputInfo.commandLine, out string _hexOut);
 
                         if (!string.IsNullOrEmpty(_hexOut.Trim()))
@@ -1194,6 +1254,7 @@ namespace ARM_Builder_V6
                     }
                 }
 
+                // reset work directory
                 resetWorkDir();
 
                 // flush to database
@@ -1207,12 +1268,13 @@ namespace ARM_Builder_V6
             }
             catch (Exception err)
             {
-                resetWorkDir();
-
                 log("");
                 errorWithLable(err.Message + "\r\n");
                 errorWithLable("Build failed !");
                 log("");
+
+                // reset work dir when failed
+                resetWorkDir();
 
                 // dump error log
                 appendLogs(err);
@@ -1225,8 +1287,7 @@ namespace ARM_Builder_V6
 
             try
             {
-                // run tasks after build success
-                changeWorkDir(binDir);
+                switchWorkDir(projectRoot);
                 runTasks("Run Tasks After Build", "afterBuildTasks", tasksEnv);
                 resetWorkDir();
             }
@@ -1295,20 +1356,51 @@ namespace ARM_Builder_V6
             return 8;
         }
 
-        static void changeWorkDir(string path)
+        static void switchWorkDir(string path)
         {
-            Environment.CurrentDirectory = path;
+            try
+            {
+                Environment.CurrentDirectory = path;
+            }
+            catch (DirectoryNotFoundException e)
+            {
+                throw new Exception("Switch workspace failed ! Not found directory: " + path, e);
+            }
         }
 
         static void resetWorkDir()
         {
-            Environment.CurrentDirectory = prevWorkDir;
+            Environment.CurrentDirectory = defWorkDir;
         }
+
+        //---
+
+        static void setEnvValue(string key, string value)
+        {
+            Environment.SetEnvironmentVariable(key, value);
+            if (envMapper.ContainsKey(key))
+            {
+                envMapper.Remove(key);
+            }
+            envMapper.Add(key, value);
+        }
+
+        static string replaceEnvVariable(string path)
+        {
+            foreach (var keyValue in envMapper)
+            {
+                path = path.Replace("%" + keyValue.Key + "%", keyValue.Value);
+            }
+
+            return path;
+        }
+
+        //---
 
         static int runExe(string filename, string args, out string _output)
         {
             Process process = new Process();
-            process.StartInfo.FileName = filename;
+            process.StartInfo.FileName = replaceEnvVariable(filename);
             process.StartInfo.Arguments = args;
             process.StartInfo.UseShellExecute = false;
             process.StartInfo.RedirectStandardOutput = true;
