@@ -605,13 +605,21 @@ namespace ARM_Builder_V6
                 return null;
             }
 
-            root = root.Replace('\\', '/');
-            absPath = absPath.Replace('\\', '/');
+            string[] rList = root.Replace('\\', '/').Split('/');
+            string[] absList = absPath.Replace('\\', '/').Split('/');
 
-            if (absPath.StartsWith(root))
+            int cIndex;
+            for (cIndex = 0; cIndex < rList.Length; cIndex++)
             {
-                string prefix = "." + (root.EndsWith("/") ? "/" : "");
-                return (prefix + absPath.Substring(root.Length)).Replace('/', Path.DirectorySeparatorChar);
+                if (rList[cIndex] != absList[cIndex])
+                {
+                    break;
+                }
+            }
+
+            if (cIndex == rList.Length)
+            {
+                return ("./" + absPath.Substring(root.Length)).Replace('/', Path.DirectorySeparatorChar);
             }
 
             return null;
@@ -842,9 +850,12 @@ namespace ARM_Builder_V6
     {
         static readonly int CODE_ERR = 1;
         static readonly int CODE_DONE = 0;
+        static int ERR_LEVEL = CODE_DONE;
 
         static readonly int compileThreshold = 16;
         static readonly string incSearchName = "IncludeSearcher.exe";
+
+        static readonly Encoding UTF8 = new UTF8Encoding(false);
 
         // file filters
         static readonly Regex cFileFilter = new Regex(@"\.c$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -859,7 +870,8 @@ namespace ARM_Builder_V6
         static readonly List<string> asmList = new List<string>();
         static readonly List<string> libList = new List<string>();
 
-        static readonly string defWorkDir = Environment.CurrentDirectory;
+        static readonly string defWorkDir =
+            Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
         static readonly Dictionary<string, string> envMapper = new Dictionary<string, string>();
 
         static int ramMaxSize = -1;
@@ -891,56 +903,62 @@ namespace ARM_Builder_V6
         /**
          * command format: 
          *      -b <binDir>
-         *      -d <dumpDir>
          *      -M <modelFile>
          *      -p <paramsFile>
-         *      -o <outDir>
          *      -m <mode>
          */
         static int Main(string[] args)
         {
-            if (args.Length < 10)
-            {
-                errorWithLable("Too few parameters !\r\n");
-                return CODE_ERR;
-            }
+            // set current dir
+            switchWorkDir(defWorkDir);
 
-            Dictionary<string, string[]> paramsTable = new Dictionary<string, string[]>();
-
-            // init params
-            for (int i = 0; i < args.Length; i += 2)
-            {
-                try
-                {
-                    paramsTable.Add(args[i], args[i + 1].Split(';'));
-                }
-                catch (ArgumentException err)
-                {
-                    errorWithLable(err.Message);
-                    return CODE_ERR;
-                }
-            }
-
-            // prepare params
+            // init
             try
             {
-                binDir = paramsTable["-b"][0];
-                dumpPath = paramsTable["-d"][0];
+                Dictionary<string, string[]> paramsTable = new Dictionary<string, string[]>();
 
-                string modelJson = File.ReadAllText(paramsTable["-M"][0]);
+                // init params
+                for (int i = 0; i < args.Length; i += 2)
+                {
+                    try
+                    {
+                        paramsTable.Add(args[i], args[i + 1].Split(';'));
+                    }
+                    catch (ArgumentException err)
+                    {
+                        errorWithLable(err.Message);
+                        return CODE_ERR;
+                    }
+                }
+
+                binDir = paramsTable["-b"][0];
+
+                string modelJson = File.ReadAllText(paramsTable["-M"][0], UTF8);
                 compilerModel = (JObject)JToken.Parse(modelJson);
 
-                string paramsJson = File.ReadAllText(paramsTable["-p"][0]);
+                string paramsJson = File.ReadAllText(paramsTable["-p"][0], UTF8);
                 paramsObj = (JObject)JToken.Parse(paramsJson);
 
+                // init path
                 projectRoot = paramsObj["rootDir"].Value<string>();
+                dumpPath = paramsObj["dumpPath"].Value<string>();
+                outDir = paramsObj["outDir"].Value<string>();
+
+                // get real path
+                dumpPath = isAbsolutePath(dumpPath) ? dumpPath : (projectRoot + Path.DirectorySeparatorChar + dumpPath);
+                outDir = isAbsolutePath(outDir) ? outDir : (projectRoot + Path.DirectorySeparatorChar + outDir);
+
+                // prepare source, includes
                 addToSourceList(projectRoot, paramsObj["sourceList"].Values<string>());
-                outDir = paramsTable["-o"][0];
+                fillIncludePath(projectRoot, (JArray)paramsObj["incDirs"]);
+
                 modeList.Add(BuilderMode.NORMAL);
                 reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
                 ramMaxSize = paramsObj.ContainsKey("ram") ? paramsObj["ram"].Value<int>() : -1;
                 romMaxSize = paramsObj.ContainsKey("rom") ? paramsObj["rom"].Value<int>() : -1;
 
+                // init other params
+                ERR_LEVEL = compilerModel.ContainsKey("ERR_LEVEL") ? compilerModel["ERR_LEVEL"].Value<int>() : ERR_LEVEL;
                 prepareModel();
                 prepareParams(paramsObj);
 
@@ -1051,6 +1069,11 @@ namespace ARM_Builder_V6
                 // reset work directory
                 resetWorkDir();
 
+                // prepare build
+                DateTime time = DateTime.Now;
+                infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
+                infoWithLable("-------------------- Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " --------------------\r\n");
+
                 foreach (var cFile in cList)
                 {
                     CmdGenerator.CmdInfo info = cmdGen.fromCFile(cFile);
@@ -1087,12 +1110,8 @@ namespace ARM_Builder_V6
 
                 CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
                 CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
-
-                // prepare build
-                DateTime time = DateTime.Now;
-                infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
-                infoWithLable("-------------------- Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " --------------------\r\n");
-
+                
+                // use fast mode
                 if (checkMode(BuilderMode.FAST))
                 {
                     doneWithLable("\r\n", true, "Use Fast Build");
@@ -1114,7 +1133,6 @@ namespace ARM_Builder_V6
                 log("> Totals: \t" + (cCount + cppCount + asmCount).ToString());
 
                 // build start
-
                 switchWorkDir(projectRoot);
 
                 log("");
@@ -1132,12 +1150,12 @@ namespace ARM_Builder_V6
                         log(">> Compile... " + Path.GetFileName(cmdInfo.sourcePath));
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
-                        if (exitCode != CODE_DONE || !ignoreNormalOut)
+                        if (exitCode > ERR_LEVEL || !ignoreNormalOut)
                         {
                             Console.Write(ccOut);
                         }
 
-                        if (exitCode != CODE_DONE)
+                        if (exitCode > ERR_LEVEL)
                         {
                             throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\", Exit Code: " + exitCode.ToString());
                         }
@@ -1177,7 +1195,7 @@ namespace ARM_Builder_V6
                     log("\r\n" + linkerOut, false);
                 }
 
-                if (linkerExitCode != CODE_DONE)
+                if (linkerExitCode > ERR_LEVEL)
                     throw new Exception("Link failed !, Exit Code: " + linkerExitCode.ToString());
 
                 // print more information
@@ -1267,7 +1285,7 @@ namespace ARM_Builder_V6
                             log("\r\n" + _hexOut, false);
                         }
 
-                        if (outExit != CODE_DONE)
+                        if (outExit > ERR_LEVEL)
                             throw new Exception("exec command failed !, Exit Code: " + outExit.ToString());
 
                         info("\r\nHex file path : \"" + outputInfo.outPath + "\"");
@@ -1324,6 +1342,11 @@ namespace ARM_Builder_V6
         }
 
         //============================================
+
+        static bool isAbsolutePath(string path)
+        {
+            return Regex.IsMatch(path, @"^(?:[a-z]:|/)", RegexOptions.IgnoreCase);
+        }
 
         static void printProgress(string label, float progress, string suffix = "")
         {
@@ -1489,13 +1512,13 @@ namespace ARM_Builder_V6
 
                         lock (Console.Out)
                         {
-                            if (exitCode != CODE_DONE || !ignoreNormalOut)
+                            if (exitCode > ERR_LEVEL || !ignoreNormalOut)
                             {
                                 Console.Write(output);
                             }
                         }
 
-                        if (exitCode != CODE_DONE)
+                        if (exitCode > ERR_LEVEL)
                         {
                             err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\", Exit Code: " + exitCode.ToString());
                             break;
@@ -1872,8 +1895,8 @@ namespace ARM_Builder_V6
         {
             foreach (string repath in sourceList)
             {
-                string sourcePath = repath.StartsWith(".")
-                    ? (rootDir + Path.DirectorySeparatorChar + repath) : repath;
+                string sourcePath = isAbsolutePath(repath)
+                    ? repath : (rootDir + Path.DirectorySeparatorChar + repath);
                 FileInfo file = new FileInfo(sourcePath);
 
                 if (file.Exists)
@@ -1902,6 +1925,25 @@ namespace ARM_Builder_V6
                 else
                 {
                     warn("Ignore invalid source file, [path] : \"" + sourcePath + "\"");
+                }
+            }
+        }
+
+        static void fillIncludePath(string rootDir, JArray jArr)
+        {
+            string[] incList = jArr.ToObject<string[]>();
+
+            jArr.RemoveAll();
+
+            foreach (string _path in incList)
+            {
+                if (isAbsolutePath(_path))
+                {
+                    jArr.Add(_path);
+                }
+                else
+                {
+                    jArr.Add(rootDir + Path.DirectorySeparatorChar + _path);
                 }
             }
         }

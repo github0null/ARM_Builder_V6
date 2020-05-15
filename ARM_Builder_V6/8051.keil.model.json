@@ -3,6 +3,7 @@
     "defines": [
         "__UVISION_VERSION=526"
     ],
+    "ERR_LEVEL": 1,
     "global": {
         "misc-controls": {
             "type": "list",
