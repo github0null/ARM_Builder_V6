@@ -885,7 +885,7 @@ namespace ARM_Builder_V6
         static string outDir;
         static string projectRoot;
 
-        static bool ignoreNormalOut = false;
+        static bool enableNormalOut = true;
 
         static HashSet<BuilderMode> modeList = new HashSet<BuilderMode>();
 
@@ -999,7 +999,7 @@ namespace ARM_Builder_V6
                 });
 
                 // ingnore keil normal output
-                ignoreNormalOut = Regex.IsMatch(cmdGen.getModelName(), @"8051", RegexOptions.IgnoreCase);
+                enableNormalOut = !Regex.IsMatch(cmdGen.getModelName(), @"8051", RegexOptions.IgnoreCase);
 
                 // add env path for tasks
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
@@ -1151,7 +1151,7 @@ namespace ARM_Builder_V6
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
                         // ignore normal output
-                        if (exitCode != CODE_DONE || !ignoreNormalOut)
+                        if (enableNormalOut || exitCode != CODE_DONE)
                         {
                             Console.Write(ccOut);
                         }
@@ -1514,7 +1514,7 @@ namespace ARM_Builder_V6
                         lock (Console.Out)
                         {
                             // ignore normal output
-                            if (exitCode != CODE_DONE || !ignoreNormalOut)
+                            if (enableNormalOut || exitCode != CODE_DONE)
                             {
                                 Console.Write(output);
                             }
