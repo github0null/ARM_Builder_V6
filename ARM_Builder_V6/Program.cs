@@ -999,7 +999,7 @@ namespace ARM_Builder_V6
                 });
 
                 // ingnore keil normal output
-                ignoreNormalOut = Regex.IsMatch(cmdGen.getModelName(), @"keil", RegexOptions.IgnoreCase);
+                ignoreNormalOut = Regex.IsMatch(cmdGen.getModelName(), @"8051", RegexOptions.IgnoreCase);
 
                 // add env path for tasks
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
@@ -1150,7 +1150,8 @@ namespace ARM_Builder_V6
                         log(">> Compile... " + Path.GetFileName(cmdInfo.sourcePath));
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
-                        if (exitCode > ERR_LEVEL || !ignoreNormalOut)
+                        // ignore normal output
+                        if (exitCode != CODE_DONE || !ignoreNormalOut)
                         {
                             Console.Write(ccOut);
                         }
@@ -1512,7 +1513,8 @@ namespace ARM_Builder_V6
 
                         lock (Console.Out)
                         {
-                            if (exitCode > ERR_LEVEL || !ignoreNormalOut)
+                            // ignore normal output
+                            if (exitCode != CODE_DONE || !ignoreNormalOut)
                             {
                                 Console.Write(output);
                             }
