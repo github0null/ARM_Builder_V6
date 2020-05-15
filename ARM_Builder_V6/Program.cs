@@ -619,7 +619,7 @@ namespace ARM_Builder_V6
 
             if (cIndex == rList.Length)
             {
-                return ("./" + absPath.Substring(root.Length)).Replace('/', Path.DirectorySeparatorChar);
+                return ("." + absPath.Substring(root.Length)).Replace('/', Path.DirectorySeparatorChar);
             }
 
             return null;
