@@ -1056,19 +1056,19 @@ namespace ARM_Builder_V6
                     CmdGenerator.CmdInfo cmdInf;
 
                     warn("\r\n C command line: \r\n");
-                    cmdInf = cmdGen.fromCFile("xxx.c");
+                    cmdInf = cmdGen.fromCFile("<file>");
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
                     warn("\r\n CPP command line: \r\n");
-                    cmdInf = cmdGen.fromCppFile("xxx.cpp");
+                    cmdInf = cmdGen.fromCppFile("<file>");
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
                     warn("\r\n ASM command line: \r\n");
-                    cmdInf = cmdGen.fromAsmFile("xxx.c");
+                    cmdInf = cmdGen.fromAsmFile("<file>");
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
                     warn("\r\n Linker command line: \r\n");
-                    cmdInf = cmdGen.genLinkCommand(new List<string> { "xxx.o" });
+                    cmdInf = cmdGen.genLinkCommand(new List<string> { "main.rel", "<file2>", "<files3...>" });
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
                     return CODE_DONE;
