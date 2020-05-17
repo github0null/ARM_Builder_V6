@@ -1,0 +1,104 @@
+﻿{
+    "name": "Universal GCC Toolchian",
+    "useUnixPath": true,
+    "global": {
+        "C_FLAGS": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "c"
+            ]
+        },
+        "CXX_FLAGS": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "cpp"
+            ]
+        },
+        "ASM_FLAGS": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "asm"
+            ]
+        },
+        "LD_FLAGS": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "linker"
+            ]
+        }
+    },
+    "groups": {
+        "c": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$invoke": {
+                "useFile": false
+            },
+            "$output": "-o ${out} ${in}"
+        },
+        "cpp": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$invoke": {
+                "useFile": false
+            },
+            "$output": "-o ${out} ${in}"
+        },
+        "asm": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$invoke": {
+                "useFile": false
+            },
+            "$output": "-o ${out} ${in}"
+        },
+        "linker": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$invoke": {
+                "useFile": false
+            },
+            "$output": "${in} -o ${out}",
+            "$outputSuffix": ".elf",
+            "$linkMap": {
+                "type": "value",
+                "command": "-Wl,-Map=${mapPath}"
+            },
+            "link-scatter": {
+                "type": "value",
+                "command": "-T "
+            },
+            "$outputBin": {
+                "$path": "bin\\${toolPrefix}objcopy.exe",
+                "$outputSuffix": ".hex",
+                "command": "-O ihex ${linkerOutput} ${output}"
+            }
+        },
+        "linker-lib": {
+            "$path": "bin\\${toolPrefix}ar.exe",
+            "$invoke": {
+                "useFile": false
+            },
+            "$output": "-rcv ${out} ${in}",
+            "$outputSuffix": ".a"
+        }
+    }
+}

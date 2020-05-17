@@ -87,9 +87,6 @@ namespace ARM_Builder_V6
         private readonly Dictionary<string, InvokeFormat> invokeFormats = new Dictionary<string, InvokeFormat>();
 
         private readonly string toolPrefix;
-        private readonly string cCompilerName;
-        private readonly string asmCompilerName;
-        private readonly string linkerName;
         private readonly bool useUnixPath;
 
         private readonly string outDir;
@@ -119,12 +116,16 @@ namespace ARM_Builder_V6
             paramObj.Add("asm", compileOptions.ContainsKey("asm-compiler") ? (JObject)compileOptions["asm-compiler"] : new JObject());
             paramObj.Add("linker", compileOptions.ContainsKey("linker") ? (JObject)compileOptions["linker"] : new JObject());
 
-            cCompilerName = paramObj["c"].ContainsKey("$use") ? paramObj["c"]["$use"].Value<string>() : "c/cpp";
-            asmCompilerName = paramObj["asm"].ContainsKey("$use") ? paramObj["asm"]["$use"].Value<string>() : "asm";
-            linkerName = paramObj["linker"].ContainsKey("$use") ? paramObj["linker"]["$use"].Value<string>() : "linker";
+            string cCompilerName = ((JObject)cModel["groups"]).ContainsKey("c/cpp") ? "c/cpp" : "c";
+            string cppCompilerName = ((JObject)cModel["groups"]).ContainsKey("c/cpp") ? "c/cpp" : "cpp";
+            string asmCompilerName = paramObj["asm"].ContainsKey("$use") ? paramObj["asm"]["$use"].Value<string>() : "asm";
+            string linkerName = paramObj["linker"].ContainsKey("$use") ? paramObj["linker"]["$use"].Value<string>() : "linker";
 
             if (!((JObject)cModel["groups"]).ContainsKey(cCompilerName))
-                throw new Exception("Invalid '$use' option!，please check compile option 'c/cpp-compiler.$use'");
+                throw new Exception("Not found c compiler model");
+
+            if (!((JObject)cModel["groups"]).ContainsKey(cppCompilerName))
+                throw new Exception("Not found cpp compiler model");
 
             if (!((JObject)cModel["groups"]).ContainsKey(asmCompilerName))
                 throw new Exception("Invalid '$use' option!，please check compile option 'asm-compiler.$use'");
@@ -133,7 +134,7 @@ namespace ARM_Builder_V6
                 throw new Exception("Invalid '$use' option!，please check compile option 'linker.$use'");
 
             models.Add("c", (JObject)cModel["groups"][cCompilerName]);
-            models.Add("cpp", (JObject)cModel["groups"][cCompilerName]);
+            models.Add("cpp", (JObject)cModel["groups"][cppCompilerName]);
             models.Add("asm", (JObject)cModel["groups"][asmCompilerName]);
             models.Add("linker", (JObject)cModel["groups"][linkerName]);
 
@@ -870,8 +871,7 @@ namespace ARM_Builder_V6
         static readonly List<string> asmList = new List<string>();
         static readonly List<string> libList = new List<string>();
 
-        static readonly string defWorkDir =
-            Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+        static readonly string defWorkDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
         static readonly Dictionary<string, string> envMapper = new Dictionary<string, string>();
 
         static int ramMaxSize = -1;
@@ -1047,11 +1047,12 @@ namespace ARM_Builder_V6
                 }
 
                 // check compiler path
-                //foreach (var tool in toolPaths)
-                //{
-                //    if (!File.Exists(tool.Value))
-                //        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
-                //}
+                foreach (var tool in toolPaths)
+                {
+                    string absPath = replaceEnvVariable(tool.Value);
+                    if (!File.Exists(absPath))
+                        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
+                }
 
                 //========================================================
 
@@ -1110,7 +1111,7 @@ namespace ARM_Builder_V6
 
                 CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
                 CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
-                
+
                 // use fast mode
                 if (checkMode(BuilderMode.FAST))
                 {
@@ -1175,10 +1176,7 @@ namespace ARM_Builder_V6
 
                 log("");
                 infoWithLable("-------------------- Start link... --------------------");
-
-                //if (!File.Exists(linkInfo.exePath))
-                //    throw new Exception("Not found linker !, [path] : \"" + linkInfo.exePath + "\"");
-
+                
                 if (libList.Count > 0)
                 {
                     log("");
@@ -1274,9 +1272,11 @@ namespace ARM_Builder_V6
 
                     try
                     {
-                        //if (!File.Exists(outputInfo.exePath))
-                        //    throw new Exception("Not found " + Path.GetFileName(outputInfo.exePath)
-                        //        + " !, [path] : \"" + outputInfo.exePath + "\"");
+                        string exeAbsPath = replaceEnvVariable(outputInfo.exePath);
+
+                        if (!File.Exists(exeAbsPath))
+                            throw new Exception("Not found " + Path.GetFileName(exeAbsPath)
+                                + " !, [path] : \"" + exeAbsPath + "\"");
 
                         // must use 'cmd', because SDCC has '>' command
                         int outExit = runExe("cmd", "/C \"\"" + outputInfo.exePath + "\" " + outputInfo.commandLine + "\"", out string _hexOut);

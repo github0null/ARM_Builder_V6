@@ -62,6 +62,9 @@
     <None Include="arm.v6.model.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Include="gcc.model.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config" />
     <None Include="sdcc.model.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -73,7 +76,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties stm8_1iar_1model_1json__JSONSchema="http://json.schemastore.org/chutzpah" arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" sdcc_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" />
+      <UserProperties sdcc_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" stm8_1iar_1model_1json__JSONSchema="http://json.schemastore.org/chutzpah" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

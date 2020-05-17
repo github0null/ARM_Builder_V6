@@ -3,12 +3,31 @@
     "toolPrefix": "arm-none-eabi-",
     "useUnixPath": true,
     "global": {
-        "misc-controls": {
+        "C_FLAGS": {
             "type": "list",
             "command": "",
             "group": [
-                "c/cpp",
-                "asm",
+                "c"
+            ]
+        },
+        "CXX_FLAGS": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "cpp"
+            ]
+        },
+        "ASM_FLAGS": {
+            "type": "list",
+            "command": "",
+            "group": [
+                "asm"
+            ]
+        },
+        "LD_FLAGS": {
+            "type": "list",
+            "command": "",
+            "group": [
                 "linker"
             ]
         },
@@ -21,7 +40,8 @@
                 "false": ""
             },
             "group": [
-                "c/cpp",
+                "c",
+                "cpp",
                 "asm"
             ]
         },
@@ -39,7 +59,8 @@
                 "cortex-m7-dp": "cortex-m7"
             },
             "group": [
-                "c/cpp",
+                "c",
+                "cpp",
                 "asm"
             ]
         },
@@ -56,7 +77,8 @@
                 "cortex-m7-dp": "-mfpu=fpv5-d16"
             },
             "group": [
-                "c/cpp",
+                "c",
+                "cpp",
                 "asm"
             ]
         },
@@ -73,14 +95,15 @@
                 "cortex-m7-dp": "-mfloat-abi=hard"
             },
             "group": [
-                "c/cpp",
+                "c",
+                "cpp",
                 "asm"
             ],
             "description": ""
         }
     },
     "groups": {
-        "c/cpp": {
+        "c": {
             "$path": "bin\\${toolPrefix}gcc.exe",
             "$includes": {
                 "body": "-I${value}"
@@ -95,11 +118,12 @@
             "$output": "-o ${out} ${in}",
             "$default": [
                 "-c",
+                "-x c",
                 "-mthumb"
             ],
             "$language-c": {
                 "type": "keyValue",
-                "command": "-x c -std=",
+                "command": "-std=",
                 "enum": {
                     "default": "c90",
                     "c89": "c89",
@@ -112,12 +136,65 @@
                     "gnu99": "gnu99",
                     "gnu11": "gnu11",
                     "gnu1x": "gnu1x"
-                },
-                "exclude": [ "-fno-rtti" ]
+                }
             },
+            "optimization": {
+                "type": "selectable",
+                "command": {
+                    "false": "",
+                    "level-0": "-O0",
+                    "level-1": "-O1",
+                    "level-2": "-O2",
+                    "level-3": "-O3",
+                    "level-size": "-Os",
+                    "level-fast": "-Ofast",
+                    "level-debug": "-Og"
+                }
+            },
+            "plain-char-is-signed": {
+                "type": "selectable",
+                "command": {
+                    "true": "-fsigned-char",
+                    "false": "-funsigned-char"
+                }
+            },
+            "turn-Warning-into-errors": {
+                "type": "selectable",
+                "command": {
+                    "true": "-Werror",
+                    "false": ""
+                }
+            },
+            "warnings": {
+                "type": "selectable",
+                "command": {
+                    "false": "",
+                    "no-warnings": "-w",
+                    "all-warnings": "-Wall"
+                }
+            }
+        },
+        "cpp": {
+            "$path": "bin\\${toolPrefix}gcc.exe",
+            "$includes": {
+                "body": "-I${value}"
+            },
+            "$defines": {
+                "body": "-D${key}=\"${value}\""
+            },
+            "$invoke": {
+                "useFile": true,
+                "body": "@${value}"
+            },
+            "$output": "-o ${out} ${in}",
+            "$default": [
+                "-c",
+                "-x c++",
+                "-mthumb"
+            ],
             "$language-cpp": {
                 "type": "keyValue",
-                "command": "-x c++ -std=",
+                "command": "-std=",
                 "enum": {
                     "default": "c++98",
                     "c++98": "c++98",
