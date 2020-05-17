@@ -263,11 +263,14 @@
         },
         "linker": {
             "$path": "bin\\${toolPrefix}gcc.exe",
+            "$libs": {
+                "body": "-L${value}"
+            },
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"
             },
-            "$output": "${in} -o ${out}",
+            "$output": "-o ${out} ${in}",
             "$outputSuffix": ".elf",
             "$linkMap": {
                 "type": "value",
@@ -285,6 +288,9 @@
         },
         "linker-lib": {
             "$path": "bin\\${toolPrefix}ar.exe",
+            "$libs": {
+                "body": "-L${value}"
+            },
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"

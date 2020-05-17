@@ -35,6 +35,7 @@ namespace ARM_Builder_V6
             public string bindir;
             public string outpath;
             public string cwd;
+            public bool testMode;
         };
 
         public class CmdInfo
@@ -73,7 +74,7 @@ namespace ARM_Builder_V6
 
         public static readonly string optionKey = "options";
         public static readonly string[] formatKeyList = {
-            "$includes", "$defines"
+            "$includes", "$defines", "$libs"
         };
 
         private readonly Dictionary<string, Encoding> encodings = new Dictionary<string, Encoding>();
@@ -192,7 +193,13 @@ namespace ARM_Builder_V6
                 }
                 formats.Add(modelName, properties);
 
-                invokeFormats.Add(modelName, modelParams["$invoke"].ToObject<InvokeFormat>());
+                // invoke mode
+                InvokeFormat invokeFormat = modelParams["$invoke"].ToObject<InvokeFormat>();
+                if (option.testMode)
+                {
+                    invokeFormat.useFile = false;
+                }
+                invokeFormats.Add(modelName, invokeFormat);
             }
 
             // set outName to unique
@@ -274,8 +281,16 @@ namespace ARM_Builder_V6
                     }
                 }
 
-                // set include path and defines
-                if (name != "linker")
+                // set lib search folders
+                if (name == "linker")
+                {
+                    string command = getLibSearchFolders(name, ((JArray)cParams["libDirs"]).Values<string>());
+                    if (!string.IsNullOrEmpty(command))
+                    {
+                        commandList.Add(command);
+                    }
+                }
+                else // set include path and defines
                 {
                     string[] additionList = new string[] {
                         getIncludesCmdLine(name, ((JArray)cParams["incDirs"]).Values<string>()),
@@ -363,11 +378,17 @@ namespace ARM_Builder_V6
             string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
             string stableCommand = string.Join(" ", cmdLists["linker"]);
             string cmdLine = "";
+            string mapPath = outDir + Path.DirectorySeparatorChar + outName + mapSuffix;
 
             switch (cmdLocation)
             {
                 case "start":
                     cmdLine = stableCommand;
+                    if (linkerModel.ContainsKey("$linkMap"))
+                    {
+                        cmdLine += sep + getCommandValue((JObject)linkerModel["$linkMap"], "")
+                            .Replace("${mapPath}", toUnixQuotingPath(mapPath));
+                    }
                     break;
                 default:
                     break;
@@ -401,21 +422,19 @@ namespace ARM_Builder_V6
             {
                 objList[i] = toUnixQuotingPath(objList[i]);
             }
-
+            
             cmdLine += sep + linkerModel["$output"].Value<string>()
                 .Replace("${out}", toUnixQuotingPath(outPath))
                 .Replace("${in}", string.Join(objSep, objList.ToArray()));
 
-            string mapPath = outDir + Path.DirectorySeparatorChar + outName + mapSuffix;
-            if (linkerModel.ContainsKey("$linkMap"))
-            {
-                cmdLine += sep + getCommandValue((JObject)linkerModel["$linkMap"], "")
-                    .Replace("${mapPath}", toUnixQuotingPath(mapPath));
-            }
-
             switch (cmdLocation)
             {
                 case "end":
+                    if (linkerModel.ContainsKey("$linkMap"))
+                    {
+                        cmdLine += sep + getCommandValue((JObject)linkerModel["$linkMap"], "")
+                            .Replace("${mapPath}", toUnixQuotingPath(mapPath));
+                    }
                     cmdLine += " " + stableCommand;
                     break;
                 default:
@@ -496,12 +515,6 @@ namespace ARM_Builder_V6
         public string getOriginalToolPath(string name)
         {
             return models[name]["$path"].Value<string>().Replace("${toolPrefix}", toolPrefix);
-        }
-
-        public void traverseCommands(CmdVisitor visitor)
-        {
-            foreach (var item in cmdLists)
-                visitor(item.Key, string.Join(" ", item.Value));
         }
 
         public string getModelName()
@@ -845,6 +858,25 @@ namespace ARM_Builder_V6
 
             return defFormat.prefix + string.Join(defFormat.sep, cmds.ToArray()) + defFormat.suffix;
         }
+
+        private string getLibSearchFolders(string modelName, IEnumerable<string> libList)
+        {
+            if (!formats[modelName].ContainsKey("$libs"))
+            {
+                return "";
+            }
+
+            List<string> cmds = new List<string>();
+            JObject cmpModel = models[modelName];
+            CmdFormat incFormat = formats[modelName]["$libs"];
+
+            foreach (var libDirPath in libList)
+            {
+                cmds.Add(incFormat.body.Replace("${value}", toUnixQuotingPath(libDirPath, !incFormat.noQuotes)));
+            }
+
+            return incFormat.prefix + string.Join(incFormat.sep, cmds.ToArray()) + incFormat.suffix;
+        }
     }
 
     class Program
@@ -948,9 +980,12 @@ namespace ARM_Builder_V6
                 dumpPath = isAbsolutePath(dumpPath) ? dumpPath : (projectRoot + Path.DirectorySeparatorChar + dumpPath);
                 outDir = isAbsolutePath(outDir) ? outDir : (projectRoot + Path.DirectorySeparatorChar + outDir);
 
-                // prepare source, includes
+                // prepare source
                 addToSourceList(projectRoot, paramsObj["sourceList"].Values<string>());
-                fillIncludePath(projectRoot, (JArray)paramsObj["incDirs"]);
+
+                // to absolute paths
+                toAbsolutePaths(projectRoot, (JArray)paramsObj["incDirs"]);
+                toAbsolutePaths(projectRoot, (JArray)paramsObj["libDirs"]);
 
                 modeList.Add(BuilderMode.NORMAL);
                 reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
@@ -995,7 +1030,8 @@ namespace ARM_Builder_V6
                 {
                     bindir = "%TOOL_DIR%",
                     outpath = outDir,
-                    cwd = projectRoot
+                    cwd = projectRoot,
+                    testMode = checkMode(BuilderMode.DEBUG)
                 });
 
                 // ingnore keil normal output
@@ -1017,10 +1053,24 @@ namespace ARM_Builder_V6
 
                     log("\r\n" + appName + " v" + Assembly.GetExecutingAssembly().GetName().Version);
 
-                    cmdGen.traverseCommands(delegate (string key, string cmdLine) {
-                        warn("\r\n " + key + " tool's command: \r\n");
-                        log(cmdLine);
-                    });
+                    CmdGenerator.CmdInfo cmdInf;
+
+                    warn("\r\n C command line: \r\n");
+                    cmdInf = cmdGen.fromCFile("xxx.c");
+                    log(cmdInf.exePath + " " + cmdInf.commandLine);
+
+                    warn("\r\n CPP command line: \r\n");
+                    cmdInf = cmdGen.fromCppFile("xxx.cpp");
+                    log(cmdInf.exePath + " " + cmdInf.commandLine);
+
+                    warn("\r\n ASM command line: \r\n");
+                    cmdInf = cmdGen.fromAsmFile("xxx.c");
+                    log(cmdInf.exePath + " " + cmdInf.commandLine);
+
+                    warn("\r\n Linker command line: \r\n");
+                    cmdInf = cmdGen.genLinkCommand(new List<string> { "xxx.o" });
+                    log(cmdInf.exePath + " " + cmdInf.commandLine);
+
                     return CODE_DONE;
                 }
 
@@ -1176,7 +1226,7 @@ namespace ARM_Builder_V6
 
                 log("");
                 infoWithLable("-------------------- Start link... --------------------");
-                
+
                 if (libList.Count > 0)
                 {
                     log("");
@@ -1931,7 +1981,7 @@ namespace ARM_Builder_V6
             }
         }
 
-        static void fillIncludePath(string rootDir, JArray jArr)
+        static void toAbsolutePaths(string rootDir, JArray jArr)
         {
             string[] incList = jArr.ToObject<string[]>();
 
