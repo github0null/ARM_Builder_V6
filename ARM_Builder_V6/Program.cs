@@ -898,10 +898,10 @@ namespace ARM_Builder_V6
 
         static readonly Regex enterReg = new Regex(@"\r\n|\n", RegexOptions.Compiled);
 
-        static readonly List<string> cList = new List<string>();
-        static readonly List<string> cppList = new List<string>();
-        static readonly List<string> asmList = new List<string>();
-        static readonly List<string> libList = new List<string>();
+        static readonly HashSet<string> cList = new HashSet<string>();
+        static readonly HashSet<string> cppList = new HashSet<string>();
+        static readonly HashSet<string> asmList = new HashSet<string>();
+        static readonly HashSet<string> libList = new HashSet<string>();
 
         static readonly string defWorkDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
         static readonly Dictionary<string, string> envMapper = new Dictionary<string, string>();
