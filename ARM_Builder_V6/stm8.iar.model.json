@@ -256,8 +256,10 @@
                 }
             },
             "merge-duplicate-sections": {
+                "type": "selectable",
                 "command": {
-                    "true": "--merge_duplicate_sections"
+                    "true": "--merge_duplicate_sections",
+                    "false": ""
                 }
             },
             "$outputBin": {
