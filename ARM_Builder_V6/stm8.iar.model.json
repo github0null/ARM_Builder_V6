@@ -31,7 +31,7 @@
             ],
             "$listPath": {
                 "type": "value",
-                "command": "-lc ${listPath}"
+                "command": "-lCN ${listPath}"
             },
             "$language-c": {
                 "type": "selectable",
@@ -49,7 +49,11 @@
                     "Extended-EC++": "--eec++",
                     "false": "--eec++"
                 },
-                "exclude": [ "--vla", "--use_c++_inline" ]
+                "exclude": [ "--vla", "--use_c\\+\\+_inline" ]
+            },
+            "runtime-lib": {
+                "type": "value",
+                "command": "--dlib_config "
             },
             "destroy-cpp-static-object": {
                 "type": "selectable",
@@ -92,7 +96,7 @@
                 "type": "selectable",
                 "command": {
                     "true": "--char_is_signed",
-                    "false": "--char_is_unsigned"
+                    "false": ""
                 }
             },
             "floating-point": {
@@ -137,7 +141,7 @@
                     "small": "small",
                     "medium": "medium",
                     "large": "large",
-                    "default": "medium"
+                    "default": "small"
                 }
             },
             "data-mode": {
@@ -177,7 +181,7 @@
             ],
             "$listPath": {
                 "type": "value",
-                "command": "-lx ${listPath}"
+                "command": "-lxN ${listPath}"
             },
             "case-sensitive-user-symbols": {
                 "type": "selectable",
@@ -230,8 +234,7 @@
             },
             "linker-config": {
                 "type": "value",
-                "command": "--config ",
-                "description": ""
+                "command": "--config "
             },
             "config-defines": {
                 "type": "list",
