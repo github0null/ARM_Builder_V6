@@ -39,7 +39,8 @@
                     "false": "",
                     "c99": "",
                     "c89": "--c89"
-                }
+                },
+                "exclude": [ "--no_static_destruction" ]
             },
             "$language-cpp": {
                 "type": "selectable",
@@ -47,13 +48,14 @@
                     "Embedded-C++": "--ec++",
                     "Extended-EC++": "--eec++",
                     "false": "--eec++"
-                }
+                },
+                "exclude": [ "--vla", "--use_c++_inline" ]
             },
-            "not-destroy-cpp-static-object": {
+            "destroy-cpp-static-object": {
                 "type": "selectable",
                 "command": {
-                    "true": "--no_static_destruction",
-                    "false": ""
+                    "true": "",
+                    "false": "--no_static_destruction"
                 }
             },
             "allow-VLA": {
@@ -118,20 +120,14 @@
             "optimization": {
                 "type": "selectable",
                 "command": {
-                    "no": "-On",
-                    "low": "-Ol",
-                    "medium": "-Om",
+                    "no": "-On --no_cse --no_unroll --no_inline --no_code_motion --no_tbaa --no_cross_call",
+                    "low": "-Ol --no_cse --no_unroll --no_inline --no_code_motion --no_tbaa --no_cross_call",
+                    "medium": "-Om --no_unroll --no_inline --no_tbaa --no_cross_call",
                     "high": "-Oh",
                     "size": "-Ohz",
-                    "speed": "-Ohs",
-                    "false": "-Ol"
-                }
-            },
-            "no-size-constraints": {
-                "type": "selectable",
-                "command": {
-                    "true": "--no_size_constraints",
-                    "false": ""
+                    "speed": "-Ohs --no_cross_call",
+                    "speed-no-size-constraints": "-Ohs --no_cross_call --no_size_constraints",
+                    "false": "-Ol --no_cse --no_unroll --no_inline --no_code_motion --no_tbaa --no_cross_call"
                 }
             },
             "code-mode": {
@@ -186,8 +182,8 @@
             "case-sensitive-user-symbols": {
                 "type": "selectable",
                 "command": {
-                    "true": "",
-                    "false": "--case_insensitive"
+                    "true": "--case_insensitive",
+                    "false": ""
                 }
             },
             "multibyte-support": {
@@ -245,18 +241,23 @@
                 "type": "value",
                 "command": "--entry "
             },
-            "not-auto-search-runtime-lib": {
-                "type": "selectable",
-                "command": {
-                    "true": "--no_library_search",
-                    "false": ""
-                }
-            },
-            "not-support-C_SPY-debugging": {
+            "auto-search-runtime-lib": {
                 "type": "selectable",
                 "command": {
                     "true": "",
-                    "false": "--debug_lib"
+                    "false": "--no_library_search"
+                }
+            },
+            "use-C_SPY-debug-lib": {
+                "type": "selectable",
+                "command": {
+                    "true": "--debug_lib",
+                    "false": ""
+                }
+            },
+            "merge-duplicate-sections": {
+                "command": {
+                    "true": "--merge_duplicate_sections"
                 }
             },
             "$outputBin": {
