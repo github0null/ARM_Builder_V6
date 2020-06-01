@@ -70,9 +70,9 @@
                 "cortex-m0": "",
                 "cortex-m0+": "",
                 "cortex-m3": "",
-                "cortex-m4-none": "-mfpu=none",
+                "cortex-m4-none": "",
                 "cortex-m4-sp": "-mfpu=fpv4-sp-d16",
-                "cortex-m7-none": "-mfpu=none",
+                "cortex-m7-none": "",
                 "cortex-m7-sp": "-mfpu=fpv5-sp-d16",
                 "cortex-m7-dp": "-mfpu=fpv5-d16"
             },
