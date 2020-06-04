@@ -422,7 +422,7 @@ namespace ARM_Builder_V6
             {
                 objList[i] = toUnixQuotingPath(objList[i]);
             }
-            
+
             cmdLine += sep + linkerModel["$output"].Value<string>()
                 .Replace("${out}", toUnixQuotingPath(outPath))
                 .Replace("${in}", string.Join(objSep, objList.ToArray()));
@@ -1643,6 +1643,13 @@ namespace ARM_Builder_V6
 
                         foreach (JObject cmd in taskList)
                         {
+                            if (cmd.ContainsKey("disable")
+                                && cmd["disable"].Type == JTokenType.Boolean
+                                && cmd["disable"].Value<bool>())
+                            {
+                                continue;
+                            }
+
                             if (!cmd.ContainsKey("name"))
                             {
                                 throw new Exception("Task name can't be null !");
