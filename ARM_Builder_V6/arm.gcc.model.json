@@ -89,10 +89,10 @@
                 "cortex-m0+": "",
                 "cortex-m3": "",
                 "cortex-m4-none": "-mfloat-abi=soft",
-                "cortex-m4-sp": "-mfloat-abi=hard",
+                "cortex-m4-sp": "-mfloat-abi=softfp",
                 "cortex-m7-none": "-mfloat-abi=soft",
-                "cortex-m7-sp": "-mfloat-abi=hard",
-                "cortex-m7-dp": "-mfloat-abi=hard"
+                "cortex-m7-sp": "-mfloat-abi=softfp",
+                "cortex-m7-dp": "-mfloat-abi=softfp"
             },
             "group": [
                 "c",

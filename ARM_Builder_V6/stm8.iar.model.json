@@ -9,6 +9,50 @@
                 "asm",
                 "linker"
             ]
+        },
+        "printf-formatter": {
+            "type": "selectable",
+            "command": {
+                "auto": "",
+                "tiny": "--redirect _Printf=_PrintfTiny",
+                "small": "--redirect _Printf=_PrintfSmall",
+                "small-without-multibyte": "--redirect _Printf=_PrintfSmallNoMb",
+                "large": "--redirect _Printf=_PrintfLarge",
+                "large-without-multibyte": "--redirect _Printf=_PrintfLargeNoMb",
+                "full": "--redirect _Printf=_PrintfFull",
+                "full-without-multibyte": "--redirect _Printf=_PrintfFullNoMb",
+                "false": ""
+            },
+            "group": [
+                "linker"
+            ]
+        },
+        "scanf-formatter": {
+            "type": "selectable",
+            "command": {
+                "auto": "",
+                "small": "--redirect _Scanf=_ScanfSmall",
+                "small-without-multibyte": "--redirect _Scanf=_ScanfSmallNoMb",
+                "large": "--redirect _Scanf=_ScanfLarge",
+                "large-without-multibyte": "--redirect _Scanf=_ScanfLargeNoMb",
+                "full": "--redirect _Scanf=_ScanfFull",
+                "full-without-multibyte": "--redirect _Scanf=_ScanfFullNoMb",
+                "false": ""
+            },
+            "group": [
+                "linker"
+            ]
+        },
+        "math-functions": {
+            "type": "selectable",
+            "command": {
+                "smaller": "--redirect cos=__iar_cos_small --redirect cosf=__iar_cos_smallf --redirect cosl=__iar_cos_smalll --redirect exp=__iar_exp_small --redirect expf=__iar_exp_smallf --redirect expl=__iar_exp_smalll --redirect log10=__iar_log10_small --redirect log10f=__iar_log10_smallf --redirect log10l=__iar_log10_smalll --redirect log2=__iar_log2_small --redirect log2f=__iar_log2_smallf --redirect log2l=__iar_log2_smalll --redirect log=__iar_log_small --redirect logf=__iar_log_smallf --redirect logl=__iar_log_smalll --redirect pow=__iar_pow_small --redirect powf=__iar_pow_smallf --redirect powl=__iar_pow_smalll --redirect sin=__iar_sin_small --redirect sinf=__iar_sin_smallf --redirect sinl=__iar_sin_smalll --redirect tan=__iar_tan_small --redirect tanf=__iar_tan_smallf --redirect tanl=__iar_tan_smalll --redirect __iar_Sin=__iar_Sin_small --redirect __iar_Log=__iar_Log_small",
+                "default": "",
+                "false": ""
+            },
+            "group": [
+                "linker"
+            ]
         }
     },
     "groups": {

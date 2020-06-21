@@ -1,8 +1,5 @@
 {
-    "name": "ARMCC V6",
-    "defines": [
-        "__UVISION_VERSION=526"
-    ],
+    "name": "ARM Compiler Version 6",
     "useUnixPath": true,
     "global": {
         "microcontroller-cpu": {
@@ -82,7 +79,7 @@
             "$defines": {
                 "body": "-D${key}=\"${value}\""
             },
-            "$output": "-o ${out} -MD ${in}",
+            "$output": "-o ${out} ${in}",
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"
@@ -349,6 +346,13 @@
                     "cortex-m7-dp": "Cortex-M7.fp.dp"
                 },
                 "description": ""
+            },
+            "link-time-optimization": {
+                "type": "selectable",
+                "command": {
+                    "true": "--lto",
+                    "false": ""
+                }
             },
             "link-scatter": {
                 "type": "value",

@@ -1,8 +1,5 @@
 {
-    "name": "ARMCC V5",
-    "defines": [
-        "__UVISION_VERSION=526"
-    ],
+    "name": "ARM Compiler Version 5",
     "global": {
         "misc-controls": {
             "type": "list",

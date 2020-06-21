@@ -1,8 +1,5 @@
 {
-    "name": "Keil 8051",
-    "defines": [
-        "__UVISION_VERSION=526"
-    ],
+    "name": "Keil C51",
     "ERR_LEVEL": 1,
     "global": {
         "misc-controls": {
