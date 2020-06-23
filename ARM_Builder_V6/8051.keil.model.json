@@ -1,5 +1,6 @@
 {
     "name": "Keil C51",
+    "id": "Keil_C51",
     "ERR_LEVEL": 1,
     "global": {
         "misc-controls": {

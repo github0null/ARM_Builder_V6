@@ -522,6 +522,11 @@ namespace ARM_Builder_V6
             return model.ContainsKey("name") ? model["name"].Value<string>() : "null";
         }
 
+        public string getModelID()
+        {
+            return model.ContainsKey("id") ? model["id"].Value<string>() : getModelName();
+        }
+
         public string getToolPrefix()
         {
             return toolPrefix;
@@ -1034,8 +1039,8 @@ namespace ARM_Builder_V6
                     testMode = checkMode(BuilderMode.DEBUG)
                 });
 
-                // ingnore keil normal output
-                enableNormalOut = !Regex.IsMatch(cmdGen.getModelName(), @"8051", RegexOptions.IgnoreCase);
+                // ingnore keil c51 normal output
+                enableNormalOut = cmdGen.getModelID() != "Keil_C51";
 
                 // add env path for tasks
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
