@@ -40,7 +40,7 @@
             ],
             "$listPath": {
                 "type": "value",
-                "prefix": "PRINT (",
+                "prefix": "CODE PRINT (",
                 "suffix": ")",
                 "command": "${listPath}"
             },
