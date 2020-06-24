@@ -270,6 +270,9 @@
                 "useFile": true,
                 "body": "@${value}"
             },
+            "$default": [
+                "-mthumb"
+            ],
             "$output": "-o ${out} ${in}",
             "$outputSuffix": ".elf",
             "$linkMap": {
