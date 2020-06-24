@@ -5,7 +5,7 @@
     },
     {
         "fileName": "arm.gcc.model.json",
-        "version": 2
+        "version": 1
     },
     {
         "fileName": "arm.v5.model.json",
