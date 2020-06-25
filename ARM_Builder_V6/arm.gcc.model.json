@@ -84,6 +84,20 @@
                 "linker"
             ]
         },
+        "$float-abi-type": {
+            "type": "selectable",
+            "command": {
+                "softfp": "softfp",
+                "hard": "hard",
+                "false": "softfp"
+            },
+            "group": [
+                "c",
+                "cpp",
+                "asm",
+                "linker"
+            ]
+        },
         "microcontroller-float": {
             "type": "selectable",
             "command": {
@@ -91,18 +105,17 @@
                 "cortex-m0+": "",
                 "cortex-m3": "",
                 "cortex-m4-none": "-mfloat-abi=soft",
-                "cortex-m4-sp": "-mfloat-abi=softfp",
+                "cortex-m4-sp": "-mfloat-abi=${$float-abi-type}",
                 "cortex-m7-none": "-mfloat-abi=soft",
-                "cortex-m7-sp": "-mfloat-abi=softfp",
-                "cortex-m7-dp": "-mfloat-abi=softfp"
+                "cortex-m7-sp": "-mfloat-abi=${$float-abi-type}",
+                "cortex-m7-dp": "-mfloat-abi=${$float-abi-type}"
             },
             "group": [
                 "c",
                 "cpp",
                 "asm",
                 "linker"
-            ],
-            "description": ""
+            ]
         }
     },
     "groups": {

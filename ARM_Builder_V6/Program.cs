@@ -227,34 +227,9 @@ namespace ARM_Builder_V6
                 {
                     try
                     {
-                        if (ele.Key[0] != '$')
+                        if (ele.Key[0] != '$') // ignore optional commands
                         {
-                            object paramsValue = null;
-
-                            foreach (var param in cmpParams)
-                            {
-                                if (param.ContainsKey(ele.Key))
-                                {
-                                    switch (param[ele.Key].Type)
-                                    {
-                                        case JTokenType.String:
-                                            paramsValue = param[ele.Key].Value<string>();
-                                            break;
-                                        case JTokenType.Boolean:
-                                            paramsValue = param[ele.Key].Value<bool>() ? "true" : "false";
-                                            break;
-                                        case JTokenType.Integer:
-                                        case JTokenType.Float:
-                                            paramsValue = param[ele.Key].Value<object>().ToString();
-                                            break;
-                                        case JTokenType.Array:
-                                            paramsValue = param[ele.Key].Values<string>();
-                                            break;
-                                        default:
-                                            break;
-                                    }
-                                }
-                            }
+                            object paramsValue = getValueFromParamList(cmpParams, ele.Key);
 
                             try
                             {
@@ -310,6 +285,34 @@ namespace ARM_Builder_V6
                 {
                     foreach (var ele in ((JArray)cmpModel["$default-tail"]).Values<string>())
                         commandList.Add(ele);
+                }
+
+                // replace ${var} to value
+                Regex matcher = new Regex(@"\$\{([^\}]+)\}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                for (int i = 0; i < commandList.Count; i++)
+                {
+                    Match mList = matcher.Match(commandList[i]);
+                    if (mList.Success && mList.Groups.Count > 1)
+                    {
+                        for (int mIndex = 1; mIndex < mList.Groups.Count; mIndex++)
+                        {
+                            string key = mList.Groups[mIndex].Value;
+
+                            if (cmpModel.ContainsKey(key))
+                            {
+                                try
+                                {
+                                    string value = getCommandValue(
+                                        (JObject)cmpModel[key], getValueFromParamList(cmpParams, key));
+                                    commandList[i] = commandList[i].Replace("${" + key + "}", value);
+                                }
+                                catch (Exception)
+                                {
+                                    // ignore log
+                                }
+                            }
+                        }
+                    }
                 }
 
                 cmdLists.Add(name, commandList.ToArray());
@@ -533,6 +536,38 @@ namespace ARM_Builder_V6
         }
 
         //------------
+
+        private object getValueFromParamList(JObject[] pList, string key)
+        {
+            object paramsValue = null;
+
+            foreach (var param in pList)
+            {
+                if (param.ContainsKey(key))
+                {
+                    switch (param[key].Type)
+                    {
+                        case JTokenType.String:
+                            paramsValue = param[key].Value<string>();
+                            break;
+                        case JTokenType.Boolean:
+                            paramsValue = param[key].Value<bool>() ? "true" : "false";
+                            break;
+                        case JTokenType.Integer:
+                        case JTokenType.Float:
+                            paramsValue = param[key].Value<object>().ToString();
+                            break;
+                        case JTokenType.Array:
+                            paramsValue = param[key].Values<string>();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            return paramsValue;
+        }
 
         private CmdInfo fromModel(string modelName, string langName, string fpath)
         {
