@@ -36,7 +36,8 @@
             "command": {
                 "enable": "-g",
                 "disable": "",
-                "dwarf-3": "-gdwarf-3",
+                "dwarf-2": "-g -gdwarf-2",
+                "dwarf-3": "-g -gdwarf-3",
                 "false": ""
             },
             "group": [
