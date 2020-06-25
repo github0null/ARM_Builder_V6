@@ -61,7 +61,8 @@
             "group": [
                 "c",
                 "cpp",
-                "asm"
+                "asm",
+                "linker"
             ]
         },
         "microcontroller-fpu": {
@@ -79,7 +80,8 @@
             "group": [
                 "c",
                 "cpp",
-                "asm"
+                "asm",
+                "linker"
             ]
         },
         "microcontroller-float": {
@@ -97,7 +99,8 @@
             "group": [
                 "c",
                 "cpp",
-                "asm"
+                "asm",
+                "linker"
             ],
             "description": ""
         }
