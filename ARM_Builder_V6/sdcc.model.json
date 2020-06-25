@@ -179,6 +179,20 @@
                 "c/cpp",
                 "asm"
             ]
+        },
+        "use-non-free": {
+            "type": "selectable",
+            "command": {
+                "true": "--use-non-free",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm",
+                "linker",
+                "elf",
+                "s19"
+            ]
         }
     },
     "groups": {
