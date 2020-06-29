@@ -17,7 +17,8 @@ namespace IncludeSearcher
         static readonly string dateFormat = "yyyy-MM-dd HH:mm:ss";
 
         static readonly Dictionary<string, string> tables = new Dictionary<string, string>() {
-            {"datas", "files" }
+            { "main", "files" },
+            { "cache", "files_cache" }
         };
 
         static FileInfo[] sourceList;
@@ -148,7 +149,7 @@ namespace IncludeSearcher
             prepareParams(paramFile.FullName);
 
             // get all from database
-            SQLiteCommand selectCmd = new SQLiteCommand("select * from " + tables["datas"] + ";", conn);
+            SQLiteCommand selectCmd = new SQLiteCommand("select * from " + tables["main"] + ";", conn);
             SQLiteDataReader reader = selectCmd.ExecuteReader();
             while (reader.Read())
             {
@@ -257,8 +258,12 @@ namespace IncludeSearcher
 
             // update to cache
             // command: insert or replace into <tableName> (path,lastWriteTime) values()
+
+            // if mode == update, update to 'files' table, else update to 'files_cache' table
+            string targetTableName = mode == Mode.Update ? tables["main"] : tables["cache"];
+
             SQLiteCommand insertCmd = new SQLiteCommand(
-                "insert or replace into " + getTableCacheName(tables["datas"]) + " values(@path,@time,@deps);", conn);
+                "insert or replace into " + targetTableName + " values(@path,@time,@deps);", conn);
             insertCmd.Parameters.Add(new SQLiteParameter("@path", DbType.String));
             insertCmd.Parameters.Add(new SQLiteParameter("@time", DbType.String));
             insertCmd.Parameters.Add(new SQLiteParameter("@deps", DbType.String));
@@ -282,11 +287,6 @@ namespace IncludeSearcher
             {
                 error(e.Message);
                 trans.Rollback();
-            }
-
-            if (mode == Mode.Update)
-            {
-                return flushDB(conn);
             }
 
             if (conn != null)
@@ -340,19 +340,10 @@ namespace IncludeSearcher
 
                 SQLiteCommand command = new SQLiteCommand(conn);
 
-                // create all tables and caches
+                // create all tables
                 foreach (var tableName in tables.Values)
                 {
-                    // create table
                     command.CommandText = "CREATE TABLE IF NOT EXISTS " + tableName + "(" +
-                        "path TEXT PRIMARY KEY NOT NULL" +
-                        ",lastWriteTime VARCHAR(64) NOT NULL" +
-                        ",depends TEXT NOT NULL" +
-                        ");";
-                    command.ExecuteNonQuery();
-
-                    // create cache
-                    command.CommandText = "CREATE TABLE IF NOT EXISTS " + getTableCacheName(tableName) + "(" +
                         "path TEXT PRIMARY KEY NOT NULL" +
                         ",lastWriteTime VARCHAR(64) NOT NULL" +
                         ",depends TEXT NOT NULL" +
@@ -369,11 +360,6 @@ namespace IncludeSearcher
             }
 
             return null;
-        }
-
-        static string getTableCacheName(string tName)
-        {
-            return tName + "_cache";
         }
 
         static void prepareParams(string paramsPath)
@@ -623,19 +609,19 @@ namespace IncludeSearcher
             {
                 // insert or replace into <tableName> (path,lastWriteTime) values()
                 SQLiteCommand command = new SQLiteCommand(conn);
-                foreach (var tName in tables.Values)
-                {
-                    string cacheName = getTableCacheName(tName);
-                    // delete all datas
-                    command.CommandText = "delete from " + tName + ";";
-                    command.ExecuteNonQuery();
-                    // update datas from cache
-                    command.CommandText = "insert or replace into " + tName + " select * from " + cacheName + ";";
-                    command.ExecuteNonQuery();
-                    // delete all cache
-                    command.CommandText = "delete from " + cacheName + ";";
-                    command.ExecuteNonQuery();
-                }
+
+                string tableName = tables["main"];
+                string cacheName = tables["cache"];
+
+                // delete all datas
+                command.CommandText = "delete from " + tableName + ";";
+                command.ExecuteNonQuery();
+                // update datas from cache
+                command.CommandText = "insert or replace into " + tableName + " select * from " + cacheName + ";";
+                command.ExecuteNonQuery();
+                // delete all cache
+                command.CommandText = "delete from " + cacheName + ";";
+                command.ExecuteNonQuery();
 
                 command.Dispose();
             }
@@ -671,7 +657,7 @@ namespace IncludeSearcher
                 Console.Error.WriteLine();
                 _isFirstLine = false;
             }
-            
+
             Console.Error.WriteLine("[Warning] " + txt);
         }
     }
