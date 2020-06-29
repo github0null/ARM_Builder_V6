@@ -1390,7 +1390,7 @@ namespace ARM_Builder_V6
                 // reset work directory
                 resetWorkDir();
 
-                // flush to database
+                // update database
                 updateDatabase(commands.Keys);
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
@@ -1411,9 +1411,6 @@ namespace ARM_Builder_V6
 
                 // dump error log
                 appendLogs(err);
-
-                // flush to database
-                updateDatabase(doneList);
 
                 return CODE_ERR;
             }
@@ -1764,20 +1761,18 @@ namespace ARM_Builder_V6
         {
             try
             {
-                if (!checkMode(BuilderMode.FAST))
+                if (checkMode(BuilderMode.FAST))
                 {
-                    // update source to db if use Normal mode
-                    if (updateSource(dumpPath, sourceList) != CODE_DONE)
+                    if (flushDB(dumpPath) != CODE_DONE)
                     {
-                        warn("\r\nupdate source to database failed !");
+                        warn("\r\nflush to database failed !");
                     }
                 }
                 else
                 {
-                    // flush db after build success if use Fast mode
-                    if (flushDB(dumpPath) != CODE_DONE)
+                    if (updateSource(dumpPath, sourceList) != CODE_DONE)
                     {
-                        warn("\r\nflush to database failed !");
+                        warn("\r\nupdate source to database failed !");
                     }
                 }
             }
