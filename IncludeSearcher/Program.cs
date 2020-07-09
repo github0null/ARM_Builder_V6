@@ -170,7 +170,7 @@ namespace IncludeSearcher
                     if (dat.state != FileStateFlag.Stable)
                     {
                         dat.lastTime = newTime.ToString(dateFormat);
-                        dat.depList = searchFileIncludes(headerDirsList, dat.path);
+                        dat.depList = searchFileIncludes(headerDirsList, dat.path) ?? new string[0];
                     }
 
                     if (searchCache.ContainsKey(dat.path))
@@ -477,7 +477,7 @@ namespace IncludeSearcher
                     path = path,
                     lastTime = File.GetLastWriteTime(path).ToString(dateFormat),
                     state = FileStateFlag.New,
-                    depList = searchFileIncludes(headerDirs, path)
+                    depList = searchFileIncludes(headerDirs, path) ?? new string[0]
                 };
                 searchCache.Add(path, srcData);
             }
@@ -553,7 +553,7 @@ namespace IncludeSearcher
                     var matcher = matchInc(line);
                     if (matcher.Success)
                     {
-                        string fName = matcher.Value.Replace('/', '\\');
+                        string fName = matcher.Value.Replace('/', Path.DirectorySeparatorChar);
                         string res = null;
 
                         if (fName.StartsWith("."))
@@ -562,21 +562,20 @@ namespace IncludeSearcher
                             if (!File.Exists(res))
                                 res = null;
                         }
-                        else if (fName.IndexOf("\\") >= 0)
+                        else if (fName.IndexOf(Path.DirectorySeparatorChar) != -1)
                         {
-                            foreach (var dir in headerDirs)
+                            foreach (var dir in headerDirs) // search in include folders
                             {
-                                res = dir + Path.DirectorySeparatorChar + fName;
-                                if (File.Exists(res))
+                                if (File.Exists(dir + Path.DirectorySeparatorChar + fName))
                                 {
+                                    res = dir + Path.DirectorySeparatorChar + fName;
                                     break;
                                 }
-                                res = null;
                             }
                         }
                         else
                         {
-                            if (headersMap.ContainsKey(fName))
+                            if (headersMap.ContainsKey(fName)) // search in header maps
                             {
                                 res = headersMap[fName];
                             }
