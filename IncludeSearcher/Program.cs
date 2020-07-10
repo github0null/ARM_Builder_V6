@@ -23,7 +23,7 @@ namespace IncludeSearcher
 
         static FileInfo[] sourceList;
         static string[] headerDirsList;
-        static Dictionary<string, string> headersMap = new Dictionary<string, string>();
+        static FileMap headersMap = new FileMap(true);
         static Dictionary<string, DBData> searchCache = new Dictionary<string, DBData>();
 
         enum Mode
@@ -50,6 +50,42 @@ namespace IncludeSearcher
             public DBData()
             {
                 state = FileStateFlag.Stable;
+            }
+        }
+
+        class FileMap
+        {
+            private Dictionary<string, string> map = new Dictionary<string, string>();
+            private bool ignoreCase;
+
+            public FileMap(bool ignoreCase)
+            {
+                this.ignoreCase = ignoreCase;
+            }
+
+            public string this[string name]
+            {
+                get
+                {
+                    return ignoreCase ? map[name.ToLower()] : map[name];
+                }
+                set
+                {
+                    map[name] = value;
+                }
+            }
+
+            public bool include(string fileName)
+            {
+                return map.ContainsKey(ignoreCase ? fileName.ToLower() : fileName);
+            }
+
+            public void add(string filePath)
+            {
+                string path = ignoreCase ? filePath.ToLower() : filePath;
+                string name = Path.GetFileName(path);
+                if (!map.ContainsKey(name))
+                    map.Add(name, path);
             }
         }
 
@@ -388,11 +424,7 @@ namespace IncludeSearcher
                                 {
                                     if (headerFilter.IsMatch(hFile))
                                     {
-                                        string name = Path.GetFileName(hFile);
-                                        if (!headersMap.ContainsKey(name))
-                                        {
-                                            headersMap.Add(name, hFile);
-                                        }
+                                        headersMap.add(hFile);
                                     }
                                 }
                                 dirList.Add(_line);
@@ -430,10 +462,12 @@ namespace IncludeSearcher
 
         static IncludeMatcher matchInc(string str)
         {
-            int start = -1, end = -1, index = 0;
+            int start = -1, end = -1;
 
-            foreach (var c in str)
+            for (int index = 0; index < str.Length; index++)
             {
+                char c = str[index];
+
                 if (start == -1 && (c == '"' || c == '<'))
                 {
                     start = index + 1;
@@ -443,7 +477,6 @@ namespace IncludeSearcher
                     end = index - 1;
                     break;
                 }
-                index++;
             }
 
             if (start != -1 && end > start)
@@ -575,7 +608,7 @@ namespace IncludeSearcher
                         }
                         else
                         {
-                            if (headersMap.ContainsKey(fName)) // search in header maps
+                            if (headersMap.include(fName)) // search in header maps
                             {
                                 res = headersMap[fName];
                             }
