@@ -71,7 +71,7 @@ namespace IncludeSearcher
                 }
                 set
                 {
-                    map[name] = value;
+                    map[ignoreCase ? name.ToLower() : name] = value;
                 }
             }
 
