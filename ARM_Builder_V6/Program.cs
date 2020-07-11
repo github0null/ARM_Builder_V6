@@ -998,18 +998,25 @@ namespace ARM_Builder_V6
                     }
                     catch (ArgumentException err)
                     {
-                        errorWithLable("params format failed: " + err.Message);
+                        errorWithLable("params format failed !, " + err.Message);
                         return CODE_ERR;
                     }
                 }
 
-                binDir = paramsTable["-b"][0];
+                try
+                {
+                    binDir = paramsTable["-b"][0];
 
-                string modelJson = File.ReadAllText(paramsTable["-M"][0], UTF8);
-                compilerModel = (JObject)JToken.Parse(modelJson);
+                    string modelJson = File.ReadAllText(paramsTable["-M"][0], UTF8);
+                    compilerModel = (JObject)JToken.Parse(modelJson);
 
-                string paramsJson = File.ReadAllText(paramsTable["-p"][0], UTF8);
-                paramsObj = (JObject)JToken.Parse(paramsJson);
+                    string paramsJson = File.ReadAllText(paramsTable["-p"][0], UTF8);
+                    paramsObj = (JObject)JToken.Parse(paramsJson);
+                }
+                catch (KeyNotFoundException)
+                {
+                    throw new Exception("some command line arguments missing !");
+                }
 
                 // init path
                 projectRoot = paramsObj["rootDir"].Value<string>();
