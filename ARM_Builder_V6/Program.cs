@@ -998,7 +998,7 @@ namespace ARM_Builder_V6
                     }
                     catch (ArgumentException err)
                     {
-                        errorWithLable(err.Message);
+                        errorWithLable("params format failed: " + err.Message);
                         return CODE_ERR;
                     }
                 }
@@ -1054,7 +1054,7 @@ namespace ARM_Builder_V6
             }
             catch (Exception err)
             {
-                errorWithLable("Init build failed !, " + err.Message + "\r\n");
+                errorWithLable("Init build failed !, " + err.Message + "\r\n" + err.ToString());
                 return CODE_ERR;
             }
 
