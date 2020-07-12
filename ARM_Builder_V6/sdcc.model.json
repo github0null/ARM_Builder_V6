@@ -156,7 +156,8 @@
             },
             "group": [
                 "c/cpp",
-                "asm"
+                "asm",
+				"elf"
             ]
         },
         "allow-unsafe-read": {
