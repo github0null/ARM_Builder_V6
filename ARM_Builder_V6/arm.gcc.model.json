@@ -1,5 +1,6 @@
 ﻿{
-    "name": "GCC for ARM",
+    "name": "GNU C Compiler for ARM",
+    "id": "GCC",
     "toolPrefix": "arm-none-eabi-",
     "useUnixPath": true,
     "global": {

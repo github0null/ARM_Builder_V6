@@ -1,5 +1,6 @@
 {
-    "name": "ARM Compiler Version 6",
+    "name": "ARM C Compiler Version 6",
+    "id": "AC6",
     "useUnixPath": true,
     "global": {
         "microcontroller-cpu": {

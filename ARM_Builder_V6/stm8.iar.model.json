@@ -1,5 +1,6 @@
 ﻿{
-    "name": "IAR for STM8",
+    "name": "IAR C Compiler for STM8",
+    "id": "IAR_STM8",
     "global": {
         "misc-controls": {
             "type": "list",

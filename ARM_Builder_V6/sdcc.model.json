@@ -1,5 +1,6 @@
 {
-    "name": "SDCC",
+    "name": "Small Device C Compiler",
+    "id": "SDCC",
     "global": {
         "misc-controls": {
             "type": "list",
