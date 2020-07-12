@@ -315,6 +315,16 @@
                 "$outputSuffix": ".hex",
                 "command": "--silent --ihex ${linkerOutput} ${output}"
             }
+        },
+        "linker-lib": {
+            "$path": "stm8\\bin\\iarchive.exe",
+            "$invoke": {
+                "useFile": true,
+                "body": "-f ${value}"
+            },
+            "$objPathSep": " ",
+            "$outputSuffix": ".lib",
+            "$output": "--create ${in} -o ${out}"
         }
     }
 }

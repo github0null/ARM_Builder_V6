@@ -309,9 +309,6 @@
         },
         "linker-lib": {
             "$path": "bin\\${toolPrefix}ar.exe",
-            "$libs": {
-                "body": "-L${value}"
-            },
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"
