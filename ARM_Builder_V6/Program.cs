@@ -1245,7 +1245,7 @@ namespace ARM_Builder_V6
                 {
                     foreach (var cmdInfo in commands.Values)
                     {
-                        log(">> Compile... " + Path.GetFileName(cmdInfo.sourcePath));
+                        log(">> Compiling '" + Path.GetFileName(cmdInfo.sourcePath) + "'");
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
                         // ignore normal output
@@ -1402,7 +1402,7 @@ namespace ARM_Builder_V6
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                doneWithLable("-------------------- Build successfully ! Elapsed time "
+                doneWithLable("-------------------- Build successfully !, Elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
                     + " --------------------\r\n", true, " DONE ");
             }
@@ -1601,7 +1601,7 @@ namespace ARM_Builder_V6
                             break;
                         }
 
-                        log(">> Compile... " + Path.GetFileName(cmds[index].sourcePath));
+                        log(">> Compiling '" + Path.GetFileName(cmds[index].sourcePath) + "'");
 
                         int exitCode = runExe(cmds[index].exePath, cmds[index].commandLine, out string output);
 
