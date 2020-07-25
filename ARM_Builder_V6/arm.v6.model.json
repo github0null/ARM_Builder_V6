@@ -80,7 +80,7 @@
             "$defines": {
                 "body": "-D${key}=\"${value}\""
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-o ${out} -MD ${in}",
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"
@@ -269,7 +269,7 @@
             "$defines": {
                 "body": "-D${key}=\"${value}\""
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-o ${out} -MD ${in}",
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"

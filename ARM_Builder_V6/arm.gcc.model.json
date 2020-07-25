@@ -133,7 +133,7 @@
                 "useFile": true,
                 "body": "@${value}"
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-o ${out} -MD ${in}",
             "$default": [
                 "-c",
                 "-x c",
@@ -204,7 +204,7 @@
                 "useFile": true,
                 "body": "@${value}"
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-o ${out} -MD ${in}",
             "$default": [
                 "-c",
                 "-x c++",
@@ -267,7 +267,7 @@
             "$defines": {
                 "body": "-D${key}=\"${value}\""
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-o ${out} -MD ${in}",
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"
