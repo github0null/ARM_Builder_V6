@@ -46,6 +46,7 @@ namespace IncludeSearcher
             public string lastTime;
             public string[] depList;
             public FileStateFlag state;
+            public bool hasError;
 
             public DBData()
             {
@@ -187,6 +188,7 @@ namespace IncludeSearcher
             // get all from database
             SQLiteCommand selectCmd = new SQLiteCommand("select * from " + tables["main"] + ";", conn);
             SQLiteDataReader reader = selectCmd.ExecuteReader();
+
             while (reader.Read())
             {
                 string deps = reader.GetString(2).Trim();
@@ -195,7 +197,8 @@ namespace IncludeSearcher
                 {
                     path = reader.GetString(0),
                     lastTime = reader.GetString(1),
-                    depList = string.IsNullOrEmpty(deps) ? new string[0] : deps.Split(';')
+                    depList = string.IsNullOrEmpty(deps) ? new string[0] : deps.Split(';'),
+                    hasError = reader.IsDBNull(3) ? false : reader.GetBoolean(3)
                 };
 
                 if (File.Exists(dat.path))
@@ -206,7 +209,8 @@ namespace IncludeSearcher
                     if (dat.state != FileStateFlag.Stable)
                     {
                         dat.lastTime = newTime.ToString(dateFormat);
-                        dat.depList = searchFileIncludes(headerDirsList, dat.path) ?? new string[0];
+                        dat.depList = searchFileIncludes(headerDirsList, dat.path, out bool hasError) ?? new string[0];
+                        dat.hasError = hasError;
                     }
 
                     if (searchCache.ContainsKey(dat.path))
@@ -219,6 +223,7 @@ namespace IncludeSearcher
                     }
                 }
             }
+
             reader.Close();
 
             //-------------------------------------------------------------------
@@ -247,7 +252,8 @@ namespace IncludeSearcher
                         // check source file
                         if (searchCache.ContainsKey(srcFile.FullName))
                         {
-                            FileStateFlag state = searchCache[srcFile.FullName].state;
+                            DBData fData = searchCache[srcFile.FullName];
+                            FileStateFlag state = fData.hasError ? FileStateFlag.New : fData.state;
                             log("[File-" + Enum.GetName(typeof(FileStateFlag), state) + "]" + srcFile.FullName);
                             totalState = state;
                         }
@@ -299,10 +305,11 @@ namespace IncludeSearcher
             string targetTableName = mode == Mode.Update ? tables["main"] : tables["cache"];
 
             SQLiteCommand insertCmd = new SQLiteCommand(
-                "insert or replace into " + targetTableName + " values(@path,@time,@deps);", conn);
+                "insert or replace into " + targetTableName + " values(@path,@time,@deps,@hasError);", conn);
             insertCmd.Parameters.Add(new SQLiteParameter("@path", DbType.String));
             insertCmd.Parameters.Add(new SQLiteParameter("@time", DbType.String));
             insertCmd.Parameters.Add(new SQLiteParameter("@deps", DbType.String));
+            insertCmd.Parameters.Add(new SQLiteParameter("@hasError", DbType.Boolean));
 
             var trans = conn.BeginTransaction();
 
@@ -311,6 +318,7 @@ namespace IncludeSearcher
                 insertCmd.Parameters[0].Value = fInfo.path;
                 insertCmd.Parameters[1].Value = fInfo.lastTime;
                 insertCmd.Parameters[2].Value = string.Join(";", fInfo.depList);
+                insertCmd.Parameters[3].Value = fInfo.hasError;
                 insertCmd.ExecuteNonQuery();
             }
 
@@ -385,6 +393,13 @@ namespace IncludeSearcher
                         ",depends TEXT NOT NULL" +
                         ");";
                     command.ExecuteNonQuery();
+
+                    if (!isColumnExist(conn, tableName, "hasError"))
+                    {
+                        // ALTER TABLE Name ADD COLUMN new_column INTEGER DEFAULT 0
+                        command.CommandText = "ALTER TABLE " + tableName + " ADD COLUMN hasError BOOLEAN DEFAULT 0;";
+                        command.ExecuteNonQuery();
+                    }
                 }
 
                 command.Dispose();
@@ -396,6 +411,29 @@ namespace IncludeSearcher
             }
 
             return null;
+        }
+
+        static bool isColumnExist(SQLiteConnection conn, string table, string columnName)
+        {
+            // PRAGMA table_info([tablename])
+            SQLiteCommand command = new SQLiteCommand(conn);
+            command.CommandText = "PRAGMA table_info(" + table + ");";
+            SQLiteDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                for (int i = 0; i < reader.FieldCount; i++)
+                {
+                    if (reader.GetName(i) == "name" && reader.GetString(i) == columnName)
+                    {
+                        reader.Close();
+                        return true;
+                    }
+                }
+            }
+
+            reader.Close();
+            return false;
         }
 
         static void prepareParams(string paramsPath)
@@ -510,7 +548,8 @@ namespace IncludeSearcher
                     path = path,
                     lastTime = File.GetLastWriteTime(path).ToString(dateFormat),
                     state = FileStateFlag.New,
-                    depList = searchFileIncludes(headerDirs, path) ?? new string[0]
+                    depList = searchFileIncludes(headerDirs, path, out bool hasError) ?? new string[0],
+                    hasError = hasError
                 };
                 searchCache.Add(path, srcData);
             }
@@ -537,18 +576,19 @@ namespace IncludeSearcher
                 }
                 else
                 {
-                    string[] resultSet = searchFileIncludes(headerDirs, headerPath);
+                    string[] resultSet = searchFileIncludes(headerDirs, headerPath, out bool hasError);
+
+                    searchCache.Add(headerPath, new DBData
+                    {
+                        path = headerPath,
+                        lastTime = File.GetLastWriteTime(headerPath).ToString(dateFormat),
+                        depList = resultSet ?? new string[0],
+                        hasError = hasError,
+                        state = FileStateFlag.New
+                    });
 
                     if (resultSet != null)
                     {
-                        searchCache.Add(headerPath, new DBData
-                        {
-                            path = headerPath,
-                            lastTime = File.GetLastWriteTime(headerPath).ToString(dateFormat),
-                            depList = resultSet,
-                            state = FileStateFlag.New
-                        });
-
                         foreach (var item in resultSet)
                         {
                             if (resList.Add(item))
@@ -563,9 +603,11 @@ namespace IncludeSearcher
             return resList;
         }
 
-        static string[] searchFileIncludes(string[] headerDirs, string path)
+        static string[] searchFileIncludes(string[] headerDirs, string path, out bool hasError)
         {
             string[] lines;
+
+            hasError = false; // init
 
             try
             {
@@ -573,6 +615,7 @@ namespace IncludeSearcher
             }
             catch (Exception)
             {
+                hasError = true;
                 return null;
             }
 
@@ -618,6 +661,10 @@ namespace IncludeSearcher
                         {
                             reqHeaders.Add(res);
                         }
+                    }
+                    else
+                    {
+                        hasError = true;
                     }
                 }
             }
