@@ -1212,7 +1212,6 @@ namespace ARM_Builder_V6
                 // use fast mode
                 if (checkMode(BuilderMode.FAST))
                 {
-                    doneWithLable("\r\n", true, "Use Fast Build");
                     info(">> Comparing differences ...");
                     CheckDiffRes res = checkDiff(commands);
                     cCount = res.cCount;
@@ -1224,9 +1223,9 @@ namespace ARM_Builder_V6
 
                 infoWithLable("-------------------- File statistics --------------------\r\n");
                 log("> C   Files: \t" + cCount.ToString());
-                log("> C++ Files: \t" + cppCount.ToString());
-                log("> ASM Files: \t" + asmCount.ToString());
-                log("> LIB Files: \t" + libList.Count.ToString());
+                log("> Cpp Files: \t" + cppCount.ToString());
+                log("> Asm Files: \t" + asmCount.ToString());
+                log("> Lib Files: \t" + libList.Count.ToString());
                 log("");
                 log("> Totals: \t" + (cCount + cppCount + asmCount).ToString());
 
@@ -1251,7 +1250,7 @@ namespace ARM_Builder_V6
                         // ignore normal output
                         if (enableNormalOut || exitCode != CODE_DONE)
                         {
-                            Console.Write(ccOut);
+                            printCompileOutput(ccOut.Trim());
                         }
 
                         if (exitCode > ERR_LEVEL)
@@ -1265,7 +1264,7 @@ namespace ARM_Builder_V6
                 else
                 {
                     int threads = calcuThreads(reqThreadsNum, commands.Count);
-                    doneWithLable(threads.ToString() + " threads\r\n", true, "Use Multi-Thread Mode");
+                    info("Use Multi-Thread Mode: " + threads.ToString() + " threads\r\n", true);
                     CmdGenerator.CmdInfo[] cmds = new CmdGenerator.CmdInfo[commands.Count];
                     commands.Values.CopyTo(cmds, 0);
                     compileByMulThread(threads, cmds, doneList);
@@ -1437,6 +1436,86 @@ namespace ARM_Builder_V6
         }
 
         //============================================
+
+        enum OutputMatcherType
+        {
+            WarningMatcher = 0,
+            ErrorMatcher,
+            NoteMatcher,
+            LineHintMatcher,
+            LableMatcher
+        };
+
+        static Regex[] outputMatcher = new Regex[] {
+            new Regex(@"\s(warning[:]?)\s", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+            new Regex(@"\s(error[:]?)\s", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+            new Regex(@"\s(note[:]?)\s", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+            new Regex(@"^\s+\|(.+)", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+            new Regex(@"(~+\^~+|\^~+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
+
+        static void printCompileOutput(string output)
+        {
+            if (!string.IsNullOrEmpty(output))
+            {
+                string[] lines = Regex.Split(output, @"\r\n|\n");
+
+                foreach (string line in lines)
+                {
+                    int index;
+
+                    for (index = 0; index < outputMatcher.Length; index++)
+                    {
+                        Match matcher = outputMatcher[index].Match(line);
+
+                        if (matcher.Success)
+                        {
+                            Group group = matcher.Groups[1];
+
+                            if (group.Index > 0)
+                            {
+                                Console.Write(line.Substring(0, group.Index));
+                            }
+
+                            switch ((OutputMatcherType)index)
+                            {
+                                case OutputMatcherType.ErrorMatcher:
+                                    error(group.Value, false);
+                                    break;
+                                case OutputMatcherType.NoteMatcher:
+                                    info(group.Value, false);
+                                    break;
+                                case OutputMatcherType.WarningMatcher:
+                                    warn(group.Value, false);
+                                    break;
+                                case OutputMatcherType.LableMatcher:
+                                case OutputMatcherType.LineHintMatcher:
+                                    printColor(group.Value, ConsoleColor.Magenta, false);
+                                    break;
+                                default:
+                                    break;
+                            }
+
+                            if (line.Length > group.Index + group.Length)
+                            {
+                                Console.WriteLine(line.Substring(group.Index + group.Length));
+                            }
+                            else
+                            {
+                                Console.WriteLine("");
+                            }
+
+                            break;
+                        }
+                    }
+
+                    if (index == outputMatcher.Length) // not found any tag
+                    {
+                        Console.WriteLine(line);
+                    }
+                }
+            }
+        }
 
         static bool isAbsolutePath(string path)
         {
@@ -1610,7 +1689,7 @@ namespace ARM_Builder_V6
                             // ignore normal output
                             if (enableNormalOut || exitCode != CODE_DONE)
                             {
-                                Console.Write(output);
+                                printCompileOutput(output.Trim());
                             }
                         }
 
@@ -1725,7 +1804,7 @@ namespace ARM_Builder_V6
                                 cY = Console.CursorTop;
                                 Console.CursorLeft = x;
                                 Console.CursorTop = y;
-                                success("[Done]");
+                                success("[done]");
                                 Console.CursorLeft = cX;
                                 Console.CursorTop = cY;
                             }
@@ -1735,7 +1814,7 @@ namespace ARM_Builder_V6
                                 cY = Console.CursorTop;
                                 Console.CursorLeft = x;
                                 Console.CursorTop = y;
-                                error("[Failed]");
+                                error("[failed]");
                                 Console.CursorLeft = cX;
                                 Console.CursorTop = cY;
 
@@ -2107,6 +2186,16 @@ namespace ARM_Builder_V6
         static void error(string txt, bool newLine = true)
         {
             Console.ForegroundColor = ConsoleColor.Red;
+            if (newLine)
+                Console.WriteLine(txt);
+            else
+                Console.Write(txt);
+            Console.ResetColor();
+        }
+
+        static void printColor(string txt, ConsoleColor color, bool newLine = true)
+        {
+            Console.ForegroundColor = color;
             if (newLine)
                 Console.WriteLine(txt);
             else
