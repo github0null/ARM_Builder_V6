@@ -1148,7 +1148,7 @@ namespace ARM_Builder_V6
                 {
                     string absPath = replaceEnvVariable(tool.Value);
                     if (!File.Exists(absPath))
-                        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + tool.Value + "\"");
+                        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + absPath + "\"");
                 }
 
                 //========================================================
@@ -1451,7 +1451,7 @@ namespace ARM_Builder_V6
             new Regex(@"\s(error[:]?)\s", RegexOptions.IgnoreCase | RegexOptions.Compiled),
             new Regex(@"\s(note[:]?)\s", RegexOptions.IgnoreCase | RegexOptions.Compiled),
             new Regex(@"^\s+\|(.+)", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-            new Regex(@"(~+\^~+|\^~+)", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+            new Regex(@"^\s+(\^[~]*)", RegexOptions.IgnoreCase | RegexOptions.Compiled)
         };
 
         static void printCompileOutput(string output)
