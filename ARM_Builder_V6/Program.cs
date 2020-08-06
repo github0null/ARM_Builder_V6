@@ -1279,7 +1279,7 @@ namespace ARM_Builder_V6
 
                     foreach (var lib in libList)
                     {
-                        log(">> Link Lib... " + Path.GetFileName(lib));
+                        log(">> Link Lib: '" + Path.GetFileName(lib) + "'");
                     }
                 }
 

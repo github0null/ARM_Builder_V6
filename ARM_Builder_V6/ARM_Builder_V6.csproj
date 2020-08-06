@@ -26,7 +26,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\TypeScript\eide\bin\ARM\</OutputPath>
+    <OutputPath>..\..\..\TypeScript\eide\bin\builder\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -77,7 +77,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" sdcc_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" />
+      <UserProperties sdcc_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>
