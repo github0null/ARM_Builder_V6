@@ -291,7 +291,7 @@
             "$default": [
                 "-mthumb"
             ],
-            "$output": "-o ${out} ${in}",
+            "$output": "-o ${out} ${in} -lm",
             "$outputSuffix": ".elf",
             "$linkMap": {
                 "type": "value",
