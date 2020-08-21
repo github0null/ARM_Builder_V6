@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using ConsoleTableExt;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -70,7 +71,6 @@ namespace ARM_Builder_V6
             public string body = null;
         };
 
-        //-----------------------------------------------------------
 
         public static readonly string optionKey = "options";
         public static readonly string[] formatKeyList = {
@@ -1151,7 +1151,6 @@ namespace ARM_Builder_V6
                         throw new Exception("Not found " + tool.Key + " !, [path] : \"" + absPath + "\"");
                 }
 
-                //========================================================
 
                 log("");
 
@@ -1170,7 +1169,7 @@ namespace ARM_Builder_V6
                 // prepare build
                 DateTime time = DateTime.Now;
                 infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
-                infoWithLable("-------------------- Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " --------------------\r\n");
+                infoWithLable("------------------------------ Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " ------------------------------\r\n");
 
                 foreach (var cFile in cList)
                 {
@@ -1221,19 +1220,25 @@ namespace ARM_Builder_V6
                     log("");
                 }
 
-                infoWithLable("-------------------- File statistics --------------------\r\n");
-                log("> C   Files: \t" + cCount.ToString());
-                log("> Cpp Files: \t" + cppCount.ToString());
-                log("> Asm Files: \t" + asmCount.ToString());
-                log("> Lib Files: \t" + libList.Count.ToString());
-                log("");
-                log("> Totals: \t" + (cCount + cppCount + asmCount).ToString());
+                log(">> File statistics:");
+
+                int totalFilesCount = (cCount + cppCount + asmCount);
+
+                string tString = ConsoleTableBuilder
+                    .From(new List<List<object>> { new List<object> { cCount, cppCount, asmCount, libList.Count, totalFilesCount } })
+                    .WithFormat(ConsoleTableBuilderFormat.Alternative)
+                    .WithColumn(new List<string> { "C Files", "Cpp Files", "Asm Files", "Lib Files", "Totals" })
+                    .Export()
+                    .Insert(0, "   ").Replace("\n", "\n   ")
+                    .ToString();
+
+                Console.Write(tString);
 
                 // build start
                 switchWorkDir(projectRoot);
 
                 log("");
-                infoWithLable("-------------------- Start compilation... --------------------");
+                infoWithLable("------------------------------ Start compilation... ------------------------------");
 
                 if (commands.Count > 0)
                 {
@@ -1271,7 +1276,7 @@ namespace ARM_Builder_V6
                 }
 
                 log("");
-                infoWithLable("-------------------- Start link... --------------------");
+                infoWithLable("------------------------------ Start link... ------------------------------");
 
                 if (libList.Count > 0)
                 {
@@ -1364,7 +1369,7 @@ namespace ARM_Builder_V6
                 if (outputInfo != null)
                 {
                     log("");
-                    infoWithLable("-------------------- Start output hex... --------------------");
+                    infoWithLable("------------------------------ Start output hex... ------------------------------");
 
                     try
                     {
@@ -1401,9 +1406,9 @@ namespace ARM_Builder_V6
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                doneWithLable("-------------------- Build successfully !, Elapsed time "
+                doneWithLable("============================== Build successfully !, Elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " --------------------\r\n", true, " DONE ");
+                    + " ==============================\r\n", true, " DONE ");
             }
             catch (Exception err)
             {
@@ -1435,7 +1440,6 @@ namespace ARM_Builder_V6
             return CODE_DONE;
         }
 
-        //============================================
 
         enum OutputMatcherType
         {
@@ -2128,7 +2132,6 @@ namespace ARM_Builder_V6
             }
         }
 
-        //============================================
 
         static void appendLogs(Exception err)
         {
