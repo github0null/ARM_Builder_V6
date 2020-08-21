@@ -1406,9 +1406,11 @@ namespace ARM_Builder_V6
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                doneWithLable("============================== Build successfully !, Elapsed time "
+                doneWithLable(
+                    "------------------------------ Build successfully !, Elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " ==============================\r\n", true, " DONE ");
+                    + " ------------------------------\r\n", true, " DONE "
+                );
             }
             catch (Exception err)
             {
