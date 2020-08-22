@@ -305,6 +305,10 @@
                 "$path": "bin\\${toolPrefix}objcopy.exe",
                 "$outputSuffix": ".hex",
                 "command": "-O ihex ${linkerOutput} ${output}"
+            },
+            "$extraCommand": {
+                "$path": "bin\\${toolPrefix}size.exe",
+                "command": "--format=berkeley ${linkerOutput}"
             }
         },
         "linker-lib": {

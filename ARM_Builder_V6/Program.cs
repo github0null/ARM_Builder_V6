@@ -500,6 +500,30 @@ namespace ARM_Builder_V6
             };
         }
 
+        public CmdInfo genLinkerExtraCommand(string linkerOutputFile)
+        {
+            JObject linkerModel = models["linker"];
+
+            // not need output hex/bin
+            if (!linkerModel.ContainsKey("$extraCommand"))
+            {
+                return null;
+            }
+
+            JObject model = (JObject)linkerModel["$extraCommand"];
+
+            string command = model["command"].Value<string>()
+                .Replace("${linkerOutput}", toUnixQuotingPath(linkerOutputFile));
+
+            return new CmdInfo
+            {
+                exePath = getToolPathByRePath(model["$path"].Value<string>()),
+                commandLine = command,
+                sourcePath = linkerOutputFile,
+                outPath = null
+            };
+        }
+
         public string getOutName()
         {
             return parameters.ContainsKey("name") ? parameters["name"].Value<string>() : "main";
@@ -1205,9 +1229,6 @@ namespace ARM_Builder_V6
                     throw new Exception("Not found any source files !, please add some source files !");
                 }
 
-                CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
-                CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
-
                 // use fast mode
                 if (checkMode(BuilderMode.FAST))
                 {
@@ -1278,6 +1299,8 @@ namespace ARM_Builder_V6
                 log("");
                 infoWithLable("------------------------------ Start link... ------------------------------");
 
+                CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
+
                 if (libList.Count > 0)
                 {
                     log("");
@@ -1297,6 +1320,17 @@ namespace ARM_Builder_V6
 
                 if (linkerExitCode > ERR_LEVEL)
                     throw new Exception("Link failed !, Exit Code: " + linkerExitCode.ToString());
+
+                // execute extra command
+                CmdGenerator.CmdInfo extraLinkerCmd = cmdGen.genLinkerExtraCommand(linkInfo.outPath);
+                if (extraLinkerCmd != null)
+                {
+                    int exitCode = runExe(extraLinkerCmd.exePath, extraLinkerCmd.commandLine, out string cmdOutput);
+                    if (exitCode == CODE_DONE)
+                    {
+                        log("\r\n" + cmdOutput, false);
+                    }
+                }
 
                 // print more information
                 if (linkInfo.sourcePath != null && File.Exists(linkInfo.sourcePath))
@@ -1340,24 +1374,30 @@ namespace ARM_Builder_V6
                         }
 
                         float sizeKb = 0.0f;
-                        float maxKb = 1.0f;
+                        float maxKb = 0.0f;
 
-                        if (ramMaxSize != -1 && ramSize > 0)
+                        if (ramSize >= 0) // print RAM info
                         {
                             sizeKb = ramSize / 1024.0f;
-                            maxKb = ramMaxSize / 1024.0f;
 
-                            string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                            printProgress("\r\nRAM Usage: ", (float)ramSize / ramMaxSize, suffix);
+                            if (ramMaxSize != -1)
+                            {
+                                maxKb = ramMaxSize / 1024.0f;
+                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                                printProgress("\r\nRAM\tUsage: ", (float)ramSize / ramMaxSize, suffix);
+                            }
                         }
 
-                        if (romMaxSize != -1 && romSize > 0)
+                        if (romSize >= 0) // print ROM info
                         {
                             sizeKb = romSize / 1024.0f;
-                            maxKb = romMaxSize / 1024.0f;
 
-                            string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                            printProgress("\r\nROM Usage: ", (float)romSize / romMaxSize, suffix);
+                            if (romMaxSize != -1)
+                            {
+                                maxKb = romMaxSize / 1024.0f;
+                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                                printProgress("\r\nFLASH\tUsage: ", (float)romSize / romMaxSize, suffix);
+                            }
                         }
                     }
                     catch (Exception err)
@@ -1366,6 +1406,8 @@ namespace ARM_Builder_V6
                     }
                 }
 
+                // execute output command
+                CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
                 if (outputInfo != null)
                 {
                     log("");
