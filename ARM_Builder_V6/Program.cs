@@ -471,9 +471,7 @@ namespace ARM_Builder_V6
 
             // not need output hex/bin
             if (!linkerModel.ContainsKey("$outputBin"))
-            {
                 return null;
-            }
 
             JObject outputModel = (JObject)linkerModel["$outputBin"];
             string hexpath = outDir + Path.DirectorySeparatorChar + getOutName();
@@ -500,24 +498,27 @@ namespace ARM_Builder_V6
             };
         }
 
-        public CmdInfo genLinkerExtraCommand(string linkerOutputFile)
+        public CmdInfo genLinkerExtraCommand(string linkerOutputFile, out string title)
         {
             JObject linkerModel = models["linker"];
 
+            title = null;
+
             // not need output hex/bin
             if (!linkerModel.ContainsKey("$extraCommand"))
-            {
                 return null;
-            }
 
             JObject model = (JObject)linkerModel["$extraCommand"];
+
+            string exePath = getToolPathByRePath(model["$path"].Value<string>());
+            title = model.ContainsKey("name") ? model["name"].Value<string>() : exePath;
 
             string command = model["command"].Value<string>()
                 .Replace("${linkerOutput}", toUnixQuotingPath(linkerOutputFile));
 
             return new CmdInfo
             {
-                exePath = getToolPathByRePath(model["$path"].Value<string>()),
+                exePath = exePath,
                 commandLine = command,
                 sourcePath = linkerOutputFile,
                 outPath = null
@@ -1232,7 +1233,7 @@ namespace ARM_Builder_V6
                 // use fast mode
                 if (checkMode(BuilderMode.FAST))
                 {
-                    info(">> Comparing differences ...");
+                    info(">> comparing differences ...");
                     CheckDiffRes res = checkDiff(commands);
                     cCount = res.cCount;
                     asmCount = res.asmCount;
@@ -1241,7 +1242,7 @@ namespace ARM_Builder_V6
                     log("");
                 }
 
-                log(">> File statistics:");
+                log(">> file statistics:");
 
                 int totalFilesCount = (cCount + cppCount + asmCount);
 
@@ -1322,12 +1323,13 @@ namespace ARM_Builder_V6
                     throw new Exception("Link failed !, Exit Code: " + linkerExitCode.ToString());
 
                 // execute extra command
-                CmdGenerator.CmdInfo extraLinkerCmd = cmdGen.genLinkerExtraCommand(linkInfo.outPath);
+                CmdGenerator.CmdInfo extraLinkerCmd = cmdGen.genLinkerExtraCommand(linkInfo.outPath, out string cmdTitle);
                 if (extraLinkerCmd != null)
                 {
                     int exitCode = runExe(extraLinkerCmd.exePath, extraLinkerCmd.commandLine, out string cmdOutput);
                     if (exitCode == CODE_DONE)
                     {
+                        log("\r\n>> " + cmdTitle + ":", false);
                         log("\r\n" + cmdOutput, false);
                     }
                 }
@@ -1432,7 +1434,7 @@ namespace ARM_Builder_V6
                         if (outExit > ERR_LEVEL)
                             throw new Exception("exec command failed !, Exit Code: " + outExit.ToString());
 
-                        info("\r\nHex file path : \"" + outputInfo.outPath + "\"");
+                        info("\r\nHex file path: \"" + outputInfo.outPath + "\"");
                     }
                     catch (Exception err)
                     {

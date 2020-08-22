@@ -307,6 +307,7 @@
                 "command": "-O ihex ${linkerOutput} ${output}"
             },
             "$extraCommand": {
+                "name": "print elf size",
                 "$path": "bin\\${toolPrefix}size.exe",
                 "command": "--format=berkeley ${linkerOutput}"
             }
