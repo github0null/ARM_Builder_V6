@@ -1194,7 +1194,7 @@ namespace ARM_Builder_V6
                 // prepare build
                 DateTime time = DateTime.Now;
                 infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
-                infoWithLable("------------------------------ Start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " ------------------------------\r\n");
+                infoWithLable("------------------------------ start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " ------------------------------\r\n");
 
                 foreach (var cFile in cList)
                 {
@@ -1260,7 +1260,7 @@ namespace ARM_Builder_V6
                 switchWorkDir(projectRoot);
 
                 log("");
-                infoWithLable("------------------------------ Start compilation... ------------------------------");
+                infoWithLable("------------------------------ start compilation... ------------------------------");
 
                 if (commands.Count > 0)
                 {
@@ -1271,7 +1271,7 @@ namespace ARM_Builder_V6
                 {
                     foreach (var cmdInfo in commands.Values)
                     {
-                        log(">> Compiling '" + Path.GetFileName(cmdInfo.sourcePath) + "'");
+                        log(">> compiling '" + Path.GetFileName(cmdInfo.sourcePath) + "'");
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
                         // ignore normal output
@@ -1282,7 +1282,7 @@ namespace ARM_Builder_V6
 
                         if (exitCode > ERR_LEVEL)
                         {
-                            throw new Exception("Compilation failed at : \"" + cmdInfo.sourcePath + "\", Exit Code: " + exitCode.ToString());
+                            throw new Exception("compilation failed at : \"" + cmdInfo.sourcePath + "\", exit code: " + exitCode.ToString());
                         }
 
                         doneList.Add(cmdInfo.sourcePath);
@@ -1298,7 +1298,7 @@ namespace ARM_Builder_V6
                 }
 
                 log("");
-                infoWithLable("------------------------------ Start link... ------------------------------");
+                infoWithLable("------------------------------ start link... ------------------------------");
 
                 CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
 
@@ -1308,7 +1308,7 @@ namespace ARM_Builder_V6
 
                     foreach (var lib in libList)
                     {
-                        log(">> Linking '" + Path.GetFileName(lib) + "'");
+                        log(">> linking '" + Path.GetFileName(lib) + "'");
                     }
                 }
 
@@ -1320,7 +1320,7 @@ namespace ARM_Builder_V6
                 }
 
                 if (linkerExitCode > ERR_LEVEL)
-                    throw new Exception("Link failed !, Exit Code: " + linkerExitCode.ToString());
+                    throw new Exception("link failed !, exit code: " + linkerExitCode.ToString());
 
                 // execute extra command
                 CmdGenerator.CmdInfo extraLinkerCmd = cmdGen.genLinkerExtraCommand(linkInfo.outPath, out string cmdTitle);
@@ -1404,7 +1404,7 @@ namespace ARM_Builder_V6
                     }
                     catch (Exception err)
                     {
-                        warn("\r\nCan't read information from '.map' file !, " + err.Message);
+                        warn("\r\ncan't read information from '.map' file !, " + err.Message);
                     }
                 }
 
@@ -1413,14 +1413,14 @@ namespace ARM_Builder_V6
                 if (outputInfo != null)
                 {
                     log("");
-                    infoWithLable("------------------------------ Start output hex... ------------------------------");
+                    infoWithLable("------------------------------ start output hex... ------------------------------");
 
                     try
                     {
                         string exeAbsPath = replaceEnvVariable(outputInfo.exePath);
 
                         if (!File.Exists(exeAbsPath))
-                            throw new Exception("Not found " + Path.GetFileName(exeAbsPath)
+                            throw new Exception("not found " + Path.GetFileName(exeAbsPath)
                                 + " !, [path] : \"" + exeAbsPath + "\"");
 
                         // must use 'cmd', because SDCC has '>' command
@@ -1432,13 +1432,13 @@ namespace ARM_Builder_V6
                         }
 
                         if (outExit > ERR_LEVEL)
-                            throw new Exception("exec command failed !, Exit Code: " + outExit.ToString());
+                            throw new Exception("exec command failed !, exit code: " + outExit.ToString());
 
-                        info("\r\nHex file path: \"" + outputInfo.outPath + "\"");
+                        info("\r\nhex file path: \"" + outputInfo.outPath + "\"");
                     }
                     catch (Exception err)
                     {
-                        warn("\r\nOutput Hex file failed !, msg: " + err.Message);
+                        warn("\r\noutput hex file failed !, msg: " + err.Message);
                     }
                 }
 
@@ -1451,7 +1451,7 @@ namespace ARM_Builder_V6
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
                 doneWithLable(
-                    "------------------------------ Build successfully !, Elapsed time "
+                    "------------------------------ build successfully !, elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
                     + " ------------------------------\r\n", true, " DONE "
                 );
@@ -1460,7 +1460,7 @@ namespace ARM_Builder_V6
             {
                 log("");
                 errorWithLable(err.Message + "\r\n");
-                errorWithLable("Build failed !");
+                errorWithLable("build failed !");
                 log("");
 
                 // reset work dir when failed
@@ -1730,7 +1730,7 @@ namespace ARM_Builder_V6
                             break;
                         }
 
-                        log(">> Compiling '" + Path.GetFileName(cmds[index].sourcePath) + "'");
+                        log(">> compiling '" + Path.GetFileName(cmds[index].sourcePath) + "'");
 
                         int exitCode = runExe(cmds[index].exePath, cmds[index].commandLine, out string output);
 
@@ -1745,7 +1745,7 @@ namespace ARM_Builder_V6
 
                         if (exitCode > ERR_LEVEL)
                         {
-                            err = new Exception("Compilation failed at : \"" + cmds[index].sourcePath + "\", Exit Code: " + exitCode.ToString());
+                            err = new Exception("compilation failed at : \"" + cmds[index].sourcePath + "\", exit code: " + exitCode.ToString());
                             break;
                         }
 
@@ -1885,8 +1885,8 @@ namespace ARM_Builder_V6
                 }
                 catch (Exception e)
                 {
-                    warn("---------- Run task failed ! " + e.Message + " ----------");
-                    warnWithLable("Can not parse task information, aborted !\r\n");
+                    warn("---------- run task failed ! " + e.Message + " ----------");
+                    warnWithLable("can not parse task information, aborted !\r\n");
                 }
             }
 
