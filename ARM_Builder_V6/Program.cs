@@ -1086,7 +1086,7 @@ namespace ARM_Builder_V6
             }
             catch (Exception err)
             {
-                errorWithLable("Init build failed !, " + err.Message + "\r\n" + err.ToString());
+                errorWithLable("init build failed !, " + err.Message + "\r\n" + err.ToString());
                 return CODE_ERR;
             }
 
@@ -1173,7 +1173,7 @@ namespace ARM_Builder_V6
                 {
                     string absPath = replaceEnvVariable(tool.Value);
                     if (!File.Exists(absPath))
-                        throw new Exception("Not found " + tool.Key + " !, [path] : \"" + absPath + "\"");
+                        throw new Exception("not found " + tool.Key + " !, [path] : \"" + absPath + "\"");
                 }
 
 
@@ -1825,10 +1825,10 @@ namespace ARM_Builder_V6
 
                             if (!cmd.ContainsKey("name"))
                             {
-                                throw new Exception("Task name can't be null !");
+                                throw new Exception("task name can't be null !");
                             }
 
-                            info("\r\n[Run]>> ", false);
+                            info("\r\n[run]>> ", false);
 
                             string tName = cmd["name"].Value<string>();
                             log(tName + getBlanks(maxLen - tName.Length) + "\t\t", false);
@@ -1839,7 +1839,7 @@ namespace ARM_Builder_V6
 
                             if (!cmd.ContainsKey("command"))
                             {
-                                throw new Exception("Task command line can't be null !");
+                                throw new Exception("task command line can't be null !");
                             }
 
                             string command = cmd["command"].Value<string>();
@@ -2098,7 +2098,7 @@ namespace ARM_Builder_V6
             foreach (var ele in globals)
             {
                 if (!((JObject)ele.Value).ContainsKey("group"))
-                    throw new Exception("Not found 'group' in global option '" + ele.Key + "'");
+                    throw new Exception("not found 'group' in global option '" + ele.Key + "'");
 
                 foreach (var category in (JArray)ele.Value["group"])
                 {
@@ -2149,12 +2149,12 @@ namespace ARM_Builder_V6
                     }
                     else
                     {
-                        warn("Ignore unsupported source file, [path] : \"" + sourcePath + "\"");
+                        warn("ignore unsupported source file, [path] : \"" + sourcePath + "\"");
                     }
                 }
                 else
                 {
-                    warn("Ignore invalid source file, [path] : \"" + sourcePath + "\"");
+                    warn("ignore invalid source file, [path] : \"" + sourcePath + "\"");
                 }
             }
         }
@@ -2178,6 +2178,7 @@ namespace ARM_Builder_V6
             }
         }
 
+        // log func
 
         static void appendLogs(Exception err)
         {
