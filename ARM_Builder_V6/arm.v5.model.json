@@ -88,7 +88,7 @@
                 "useFile": true,
                 "body": "--Via ${value}"
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-o ${out} --depend ${refPath} ${in}",
             "$default": [
                 "-c",
                 "-g",
@@ -199,7 +199,7 @@
                 "useFile": true,
                 "body": "--Via ${value}"
             },
-            "$output": "--xref -o ${out} ${in}",
+            "$output": "--xref -o ${out} --depend ${refPath} ${in}",
             "$default": [
                 "-g",
                 "--apcs=interwork"

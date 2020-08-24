@@ -69,7 +69,7 @@
                 "useFile": true,
                 "body": "-f ${value}"
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "--dependencies=m + -o ${out} ${in}",
             "$default": [
                 "--debug",
                 "--silent"
@@ -219,7 +219,7 @@
                 "useFile": true,
                 "body": "-f {value}"
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "--dependencies=m + -o ${out} ${in}",
             "$default": [
                 "--debug",
                 "--silent"

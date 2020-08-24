@@ -5,8 +5,6 @@ VisualStudioVersion = 15.0.28307.757
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ARM_Builder_V6", "ARM_Builder_V6\ARM_Builder_V6.csproj", "{C3AE1AA9-C6FE-4E51-919C-923BCDB3F67B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IncludeSearcher", "IncludeSearcher\IncludeSearcher.csproj", "{A0B26F18-81A1-4C62-8286-6B2441B3FC4D}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,10 +15,6 @@ Global
 		{C3AE1AA9-C6FE-4E51-919C-923BCDB3F67B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C3AE1AA9-C6FE-4E51-919C-923BCDB3F67B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C3AE1AA9-C6FE-4E51-919C-923BCDB3F67B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A0B26F18-81A1-4C62-8286-6B2441B3FC4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A0B26F18-81A1-4C62-8286-6B2441B3FC4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A0B26F18-81A1-4C62-8286-6B2441B3FC4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A0B26F18-81A1-4C62-8286-6B2441B3FC4D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

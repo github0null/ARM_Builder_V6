@@ -609,6 +609,7 @@ namespace ARM_Builder_V6
             string paramsSuffix = modelName == "asm" ? "._ia" : ".__i";
             string fName = getUniqueName(Path.GetFileNameWithoutExtension(fpath));
             string outPath = outDir + Path.DirectorySeparatorChar + fName + outputSuffix;
+            string refPath = outDir + Path.DirectorySeparatorChar + fName + ".d"; // --depend ${refPath} 
             string listPath = outDir + Path.DirectorySeparatorChar + fName + ".lst";
             string langOption = null;
 
@@ -632,14 +633,20 @@ namespace ARM_Builder_V6
             if (outputFormat.Contains("${in}"))
             {
                 commands.AddRange(cmdLists[modelName]);
-                commands.Add(outputFormat.Replace("${out}", toUnixQuotingPath(outPath, isQuote))
-                    .Replace("${in}", toUnixQuotingPath(fpath, isQuote)));
+                commands.Add(outputFormat
+                    .Replace("${out}", toUnixQuotingPath(outPath, isQuote))
+                    .Replace("${in}", toUnixQuotingPath(fpath, isQuote))
+                    .Replace("${refPath}", toUnixQuotingPath(refPath, isQuote))
+                );
             }
             else
             {
                 commands.Insert(0, toUnixQuotingPath(fpath));
                 commands.AddRange(cmdLists[modelName]);
-                commands.Add(outputFormat.Replace("${out}", toUnixQuotingPath(outPath, isQuote)));
+                commands.Add(outputFormat
+                    .Replace("${out}", toUnixQuotingPath(outPath, isQuote))
+                    .Replace("${refPath}", toUnixQuotingPath(refPath, isQuote))
+                );
             }
 
             // delete exclude commands
@@ -950,8 +957,7 @@ namespace ARM_Builder_V6
         static readonly int CODE_DONE = 0;
         static int ERR_LEVEL = CODE_DONE;
 
-        static readonly int compileThreshold = 16;
-        static readonly string incSearchName = "IncludeSearcher.exe";
+        static readonly int compileThreshold = 12;
 
         static readonly Encoding UTF8 = new UTF8Encoding(false);
 
@@ -1234,7 +1240,7 @@ namespace ARM_Builder_V6
                 if (checkMode(BuilderMode.FAST))
                 {
                     info(">> comparing differences ...");
-                    CheckDiffRes res = checkDiff(commands);
+                    CheckDiffRes res = checkDiff(cmdGen.getModelID(), commands);
                     cCount = res.cCount;
                     asmCount = res.asmCount;
                     cppCount = res.cppCount;
@@ -1445,9 +1451,6 @@ namespace ARM_Builder_V6
                 // reset work directory
                 resetWorkDir();
 
-                // update database
-                updateDatabase(commands.Keys);
-
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
                 doneWithLable(
@@ -1612,7 +1615,8 @@ namespace ARM_Builder_V6
             }
 
             int maxThread = threads;
-            int expactThread = threads / 2;
+            int expactThread = threads >= 4 ? (threads / 2) : 4;
+            int minThread = threads >= 8 ? (threads / 4) : 2;
 
             if (cmdCount / maxThread >= 2)
             {
@@ -1622,6 +1626,11 @@ namespace ARM_Builder_V6
             if (cmdCount / expactThread >= 2)
             {
                 return expactThread;
+            }
+
+            if (cmdCount / minThread >= 2)
+            {
+                return minThread;
             }
 
             return 8;
@@ -1893,32 +1902,6 @@ namespace ARM_Builder_V6
             return CODE_DONE;
         }
 
-        static void updateDatabase(IEnumerable<string> sourceList)
-        {
-            try
-            {
-                if (checkMode(BuilderMode.FAST))
-                {
-                    if (flushDB(dumpPath) != CODE_DONE)
-                    {
-                        warn("\r\nflush to database failed !");
-                    }
-                }
-                else
-                {
-                    if (updateSource(dumpPath, sourceList) != CODE_DONE)
-                    {
-                        warn("\r\nupdate source to database failed !");
-                    }
-                }
-            }
-            catch (Exception err)
-            {
-                error("\r\n" + err.Message);
-                warn("\r\nupdate to database invoke failed !");
-            }
-        }
-
         static bool checkMode(BuilderMode mode)
         {
             return modeList.Contains(mode);
@@ -1938,96 +1921,102 @@ namespace ARM_Builder_V6
             }
         }
 
-        static CheckDiffRes checkDiff(Dictionary<string, CmdGenerator.CmdInfo> commands)
+        static Dictionary<string, bool> diffCache = new Dictionary<string, bool>();
+
+        static CheckDiffRes checkDiff(string modelID, Dictionary<string, CmdGenerator.CmdInfo> commands)
         {
             CheckDiffRes res = new CheckDiffRes();
+
+            Func<CmdGenerator.CmdInfo, bool> AddToChangeList = (cmd) =>
+            {
+
+                if (cFileFilter.IsMatch(cmd.sourcePath))
+                {
+                    res.cCount++;
+                }
+                else if (cppFileFilter.IsMatch(cmd.sourcePath))
+                {
+                    res.cppCount++;
+                }
+                else if (asmFileFilter.IsMatch(cmd.sourcePath))
+                {
+                    res.asmCount++;
+                }
+
+                res.totalCmds.Add(cmd.sourcePath, cmd);
+
+                return true;
+            };
+
             try
             {
-                List<string> datas = new List<string>();
-
-                // prepare params file
-                string paramsPath = outDir + Path.DirectorySeparatorChar + "inc.__ini";
-                datas.Add("[includes]");
-                foreach (var inculdePath in ((JArray)paramsObj["incDirs"]).Values<string>())
-                    datas.Add(inculdePath);
-
-                datas.Add("[sourceList]");
                 foreach (var cmd in commands.Values)
                 {
-                    if (!File.Exists(cmd.outPath))
+                    if (File.Exists(cmd.outPath))
                     {
-                        if (cFileFilter.IsMatch(cmd.sourcePath))
-                        {
-                            res.cCount++;
-                        }
-                        else if (cppFileFilter.IsMatch(cmd.sourcePath))
-                        {
-                            res.cppCount++;
-                        }
-                        else if (asmFileFilter.IsMatch(cmd.sourcePath))
-                        {
-                            res.asmCount++;
-                        }
+                        DateTime objLastWriteTime = File.GetLastWriteTime(cmd.outPath);
 
-                        res.totalCmds.Add(cmd.sourcePath, cmd);
+                        if (DateTime.Compare(File.GetLastWriteTime(cmd.sourcePath), objLastWriteTime) > 0) // src file is newer than obj file
+                        {
+                            AddToChangeList(cmd);
+                        }
+                        else // check referance is changed
+                        {
+                            string refFilePath = Path.GetDirectoryName(cmd.outPath)
+                                + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(cmd.outPath) + ".d";
+
+                            if (File.Exists(refFilePath))
+                            {
+                                string[] refList = parseRefFile(refFilePath, modelID);
+
+                                if (refList != null)
+                                {
+                                    foreach (var refPath in refList)
+                                    {
+                                        if (diffCache.ContainsKey(refPath))
+                                        {
+                                            if (diffCache[refPath])
+                                            {
+                                                AddToChangeList(cmd);
+                                                break; // file need recompile, exit
+                                            }
+                                        }
+                                        else // not in cache
+                                        {
+                                            if (File.Exists(refPath))
+                                            {
+                                                DateTime lastWrTime = File.GetLastWriteTime(refPath);
+                                                bool isOutOfDate = DateTime.Compare(lastWrTime, objLastWriteTime) > 0;
+                                                diffCache.Add(refPath, isOutOfDate); // add to cache
+
+                                                if (isOutOfDate)
+                                                {
+                                                    AddToChangeList(cmd);
+                                                    break; // out of date, need recompile, exit
+                                                }
+                                            }
+                                            else // not found ref, ref file need update
+                                            {
+                                                AddToChangeList(cmd);
+                                                break; // need recompile, exit
+                                            }
+                                        }
+                                    }
+                                }
+                                else // not found parser or parse error
+                                {
+                                    AddToChangeList(cmd);
+                                }
+                            }
+                            else // not found ref file
+                            {
+                                AddToChangeList(cmd);
+                            }
+                        }
                     }
                     else
                     {
-                        datas.Add(cmd.sourcePath);
-                    }
-                }
-
-                File.WriteAllText(paramsPath, string.Join("\r\n", datas.ToArray()));
-
-                Process proc = new Process();
-                proc.StartInfo.FileName = incSearchName;
-                proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                proc.StartInfo.UseShellExecute = false;
-                proc.StartInfo.Arguments = "-p \"" + paramsPath + "\" -d \"" + dumpPath + "\"";
-                proc.StartInfo.CreateNoWindow = false;
-                proc.StartInfo.RedirectStandardOutput = true;
-                proc.StartInfo.RedirectStandardError = true;
-                proc.Start();
-
-                string[] lines = enterReg.Split(proc.StandardOutput.ReadToEnd());
-                string errorLine = proc.StandardError.ReadToEnd();
-
-                proc.WaitForExit();
-                int exitCode = proc.ExitCode;
-                proc.Close();
-
-                if (!string.IsNullOrEmpty(errorLine))
-                {
-                    appendLogs(new Exception("[IncSearcher exit " + exitCode.ToString() + "] : " + errorLine));
-                }
-
-                foreach (var line in lines)
-                {
-                    if (line.StartsWith("[End-New]") || line.StartsWith("[End-Changed]"))
-                    {
-                        int index = line.IndexOf(']');
-                        if (index > 0)
-                        {
-                            string path = line.Substring(index + 1);
-
-                            if (cFileFilter.IsMatch(path))
-                            {
-                                res.cCount++;
-                            }
-                            else if (cppFileFilter.IsMatch(path))
-                            {
-                                res.cppCount++;
-                            }
-                            else if (asmFileFilter.IsMatch(path))
-                            {
-                                res.asmCount++;
-                            }
-
-                            if (commands.ContainsKey(path))
-                            {
-                                res.totalCmds.Add(path, commands[path]);
-                            }
-                        }
+                        AddToChangeList(cmd);
                     }
                 }
             }
@@ -2043,51 +2032,87 @@ namespace ARM_Builder_V6
             return res;
         }
 
-        static int flushDB(string dumpDir)
+        static string toAbsolutePath(string _repath)
         {
-            Process proc = new Process();
-            proc.StartInfo.FileName = incSearchName;
-            proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            proc.StartInfo.UseShellExecute = false;
-            proc.StartInfo.Arguments = " -d \"" + dumpDir + "\" -m flush";
-            proc.StartInfo.CreateNoWindow = false;
-            proc.Start();
-            proc.WaitForExit();
-            int exitCode = proc.ExitCode;
-            proc.Close();
-            return exitCode;
+            string repath = _repath.Replace('/', Path.DirectorySeparatorChar);
+
+            if (repath.Length > 1 && char.IsLetter(repath[0]) && repath[1] == ':')
+            {
+                return repath;
+            }
+
+            return projectRoot + Path.DirectorySeparatorChar + repath;
         }
 
-        static int updateSource(string dumpDir, IEnumerable<string> sourceList)
+        static Regex whitespaceMatcher = new Regex(@"(?<![\\:]) ", RegexOptions.Compiled);
+        static string[] gnu_parseRefLines(string[] lines)
         {
-            // prepare params file
-            List<string> datas = new List<string>();
-            string paramsPath = outDir + Path.DirectorySeparatorChar + "inc.__ini";
+            List<string> resultList = new List<string>();
 
-            datas.Add("[includes]");
-            foreach (var inculdePath in ((JArray)paramsObj["incDirs"]).Values<string>())
-                datas.Add(inculdePath);
+            for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+            {
+                string _line = lines[lineIndex];
 
-            datas.Add("[sourceList]");
-            foreach (var src in sourceList)
-                datas.Add(src);
+                string line = _line[_line.Length - 1] == '\\' ? _line.Substring(0, _line.Length - 1) : _line; // remove char '\'
+                string[] subLines = whitespaceMatcher.Split(line.Trim());
 
-            File.WriteAllText(paramsPath, string.Join("\r\n", datas.ToArray()));
+                if (lineIndex == 0) // first line
+                {
+                    for (int i = 1; i < subLines.Length; i++) // skip first sub line
+                    {
+                        resultList.Add(toAbsolutePath(subLines[i].Trim().Replace("\\ ", " ")));
+                    }
+                }
+                else  // other lines, first char is whitespace
+                {
+                    foreach (var item in subLines)
+                    {
+                        resultList.Add(toAbsolutePath(item.Trim().Replace("\\ ", " ")));
+                    }
+                }
+            }
 
-            Process proc = new Process();
-            proc.StartInfo.FileName = incSearchName;
-            proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-            proc.StartInfo.UseShellExecute = false;
-            proc.StartInfo.Arguments = " -p \"" + paramsPath + "\" -d \"" + dumpDir + "\" -m update";
-            proc.StartInfo.CreateNoWindow = false;
-            proc.StartInfo.RedirectStandardOutput = true;
-            proc.Start();
+            return resultList.ToArray();
+        }
 
-            proc.StandardOutput.ReadToEnd();
-            proc.WaitForExit();
-            int exitCode = proc.ExitCode;
-            proc.Close();
-            return exitCode;
+        static string[] ac5_parseRefLines(string[] lines, int startIndex = 1)
+        {
+            List<string> resultList = new List<string>();
+
+            for (int i = startIndex; i < lines.Length; i++)
+            {
+                int sepIndex = lines[i].IndexOf(": ");
+                if (sepIndex > 0)
+                {
+                    string line = lines[i].Substring(sepIndex + 1).Trim();
+                    resultList.Add(toAbsolutePath(line));
+                }
+                else // parse error, return null
+                {
+                    return null;
+                }
+            }
+
+            return resultList.ToArray();
+        }
+
+        static string[] parseRefFile(string fpath, string modeID)
+        {
+            string[] lines = File.ReadAllLines(fpath);
+
+            switch (modeID)
+            {
+                case "AC5":
+                    return ac5_parseRefLines(lines);
+                case "IAR_STM8":
+                    return ac5_parseRefLines(lines, 2);
+                case "SDCC":
+                case "AC6":
+                case "GCC":
+                    return gnu_parseRefLines(lines);
+                default:
+                    return null;
+            }
         }
 
         static void prepareModel()

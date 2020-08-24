@@ -210,7 +210,7 @@
                 "useFile": false,
                 "body": "${value}"
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-MD -o ${out} ${in}",
             "$outputSuffix": ".rel",
             "$default": [
                 "-c"
@@ -243,7 +243,7 @@
                 "useFile": false,
                 "body": "${value}"
             },
-            "$output": "-o ${out} ${in}",
+            "$output": "-MD -o ${out} ${in}",
             "$outputSuffix": ".rel",
             "$default": [
                 "-c"
