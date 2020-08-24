@@ -2105,7 +2105,7 @@ namespace ARM_Builder_V6
 
         static string[] parseRefFile(string fpath, string modeID)
         {
-            string[] lines = File.ReadAllLines(fpath);
+            string[] lines = File.ReadAllLines(fpath, Encoding.Default);
 
             switch (modeID)
             {
