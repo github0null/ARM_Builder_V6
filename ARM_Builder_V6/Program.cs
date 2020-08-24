@@ -2045,9 +2045,10 @@ namespace ARM_Builder_V6
         }
 
         static Regex whitespaceMatcher = new Regex(@"(?<![\\:]) ", RegexOptions.Compiled);
+
         static string[] gnu_parseRefLines(string[] lines)
         {
-            List<string> resultList = new List<string>();
+            HashSet<string> resultList = new HashSet<string>();
 
             for (int lineIndex = 0; lineIndex < lines.Length; lineIndex++)
             {
@@ -2072,12 +2073,15 @@ namespace ARM_Builder_V6
                 }
             }
 
-            return resultList.ToArray();
+            string[] resList = new string[resultList.Count];
+            resultList.CopyTo(resList);
+
+            return resList;
         }
 
         static string[] ac5_parseRefLines(string[] lines, int startIndex = 1)
         {
-            List<string> resultList = new List<string>();
+            HashSet<string> resultList = new HashSet<string>();
 
             for (int i = startIndex; i < lines.Length; i++)
             {
@@ -2093,7 +2097,10 @@ namespace ARM_Builder_V6
                 }
             }
 
-            return resultList.ToArray();
+            string[] resList = new string[resultList.Count];
+            resultList.CopyTo(resList);
+
+            return resList;
         }
 
         static string[] parseRefFile(string fpath, string modeID)
