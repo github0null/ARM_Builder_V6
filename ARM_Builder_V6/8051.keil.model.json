@@ -26,7 +26,7 @@
             },
             "$defines": {
                 "prefix": "DEFINE(",
-                "body": "${key}",
+                "body": "${key}='${value}'",
                 "sep": ",",
                 "suffix": ")"
             },
@@ -37,7 +37,7 @@
             "$output": "OBJECT(${out})",
             "$default": [
                 "OMF2",
-                "TABS (2)"
+                "TABS(4)"
             ],
             "$listPath": {
                 "type": "value",

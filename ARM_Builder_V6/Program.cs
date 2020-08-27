@@ -905,26 +905,33 @@ namespace ARM_Builder_V6
                 string value = null;
 
                 int index = define.IndexOf('=');
-                if (index >= 0)
+                if (index >= 0) // macro have '='
                 {
                     macro = define.Substring(0, index).Trim();
                     value = define.Substring(index + 1).Trim();
                     cmds.Add(defFormat.body.Replace("${key}", macro).Replace("${value}", value));
                 }
-                else
+                else // macro have no '='
                 {
                     macro = define.Trim();
+
+                    string macroStr = null;
 
                     if (modelName == "asm")
                     {
                         value = "1";
-                        cmds.Add(defFormat.body.Replace("${key}", macro).Replace("${value}", value));
+                        macroStr = defFormat.body
+                            .Replace("${key}", macro)
+                            .Replace("${value}", value);
                     }
-                    else
+                    else // delete macro fmt str suffix
                     {
-                        cmds.Add(Regex.Replace(defFormat.body, @"(?<define>^[^\$]+\$\{key\}).*$", "${define}")
-                            .Replace("${key}", macro));
+                        macroStr = Regex
+                            .Replace(defFormat.body, @"(?<macro_key>^[^\$]*\$\{key\}).*$", "${macro_key}")
+                            .Replace("${key}", macro);
                     }
+
+                    cmds.Add(macroStr);
                 }
             }
 
