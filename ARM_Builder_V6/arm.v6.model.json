@@ -19,8 +19,7 @@
             "group": [
                 "c/cpp",
                 "asm-clang"
-            ],
-            "description": ""
+            ]
         },
         "microcontroller-fpu": {
             "type": "selectable",
@@ -37,8 +36,7 @@
             "group": [
                 "c/cpp",
                 "asm-clang"
-            ],
-            "description": ""
+            ]
         },
         "microcontroller-float": {
             "type": "selectable",
@@ -55,8 +53,7 @@
             "group": [
                 "c/cpp",
                 "asm-clang"
-            ],
-            "description": ""
+            ]
         },
         "misc-controls": {
             "type": "list",
@@ -66,8 +63,7 @@
                 "asm",
                 "asm-clang",
                 "linker"
-            ],
-            "description": ""
+            ]
         }
     },
     "groups": {
@@ -241,8 +237,7 @@
                 "command": {
                     "true": "--pd \"__MICROLIB SETA 1\"",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "microcontroller-cpu": {
                 "type": "keyValue",
@@ -256,8 +251,7 @@
                     "cortex-m7-none": "Cortex-M7 --fpu=SoftVFP",
                     "cortex-m7-sp": "Cortex-M7.fp.sp",
                     "cortex-m7-dp": "Cortex-M7.fp.dp"
-                },
-                "description": ""
+                }
             }
         },
         "asm-clang": {
@@ -284,8 +278,7 @@
                 "command": {
                     "true": "-D__MICROLIB",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "target": {
                 "type": "keyValue",
@@ -299,8 +292,7 @@
                     "cortex-m7-none": "arm-arm-none-eabi",
                     "cortex-m7-sp": "arm-arm-none-eabi",
                     "cortex-m7-dp": "arm-arm-none-eabi"
-                },
-                "description": ""
+                }
             }
         },
         "linker": {
@@ -322,16 +314,14 @@
             "$romMatcher": "^\\s*Total ROM Size \\(Code \\+ RO Data \\+ RW Data\\)\\s+(\\d+)",
             "$linkMap": {
                 "type": "value",
-                "command": "--list ${mapPath}",
-                "description": ""
+                "command": "--list ${mapPath}"
             },
             "use-microLIB": {
                 "type": "selectable",
                 "command": {
                     "true": "--library_type=microlib",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "microcontroller-cpu": {
                 "type": "keyValue",
@@ -345,8 +335,7 @@
                     "cortex-m7-none": "Cortex-M7 --fpu=SoftVFP",
                     "cortex-m7-sp": "Cortex-M7.fp.sp",
                     "cortex-m7-dp": "Cortex-M7.fp.dp"
-                },
-                "description": ""
+                }
             },
             "link-time-optimization": {
                 "type": "selectable",
@@ -357,8 +346,7 @@
             },
             "link-scatter": {
                 "type": "value",
-                "command": "--scatter ",
-                "description": ""
+                "command": "--scatter "
             },
             "$outputBin": {
                 "$path": "ARMCLANG\\bin\\fromelf.exe",

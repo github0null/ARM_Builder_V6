@@ -209,24 +209,21 @@
                 "command": {
                     "true": "--pd \"__MICROLIB SETA 1\"",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "thumb-mode": {
                 "type": "selectable",
                 "command": {
                     "true": "--16",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "no-warnings": {
                 "type": "selectable",
                 "command": {
                     "true": "--nowarn",
                     "false": ""
-                },
-                "description": ""
+                }
             }
         },
         "linker": {
@@ -248,45 +245,39 @@
             "$romMatcher": "^\\s*Total ROM Size \\(Code \\+ RO Data \\+ RW Data\\)\\s+(\\d+)",
             "$linkMap": {
                 "type": "value",
-                "command": "--list ${mapPath}",
-                "description": ""
+                "command": "--list ${mapPath}"
             },
             "use-microLIB": {
                 "type": "selectable",
                 "command": {
                     "true": "--library_type=microlib",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "not-search-std-libs": {
                 "type": "selectable",
                 "command": {
                     "true": "--noscanlib",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "read-only-position-independent": {
                 "type": "selectable",
                 "command": {
                     "true": "--ropi",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "read-write-position-independent": {
                 "type": "selectable",
                 "command": {
                     "true": "--rwpi",
                     "false": ""
-                },
-                "description": ""
+                }
             },
             "link-scatter": {
                 "type": "value",
-                "command": "--scatter ",
-                "description": ""
+                "command": "--scatter "
             },
             "$outputBin": {
                 "$path": "ARMCC\\bin\\fromelf.exe",

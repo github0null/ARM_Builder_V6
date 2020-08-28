@@ -10,8 +10,7 @@
                 "c/cpp",
                 "asm",
                 "linker"
-            ],
-            "description": ""
+            ]
         }
     },
     "groups": {
@@ -37,20 +36,22 @@
             "$output": "OBJECT(${out})",
             "$default": [
                 "OMF2",
-                "TABS(4)"
+                "TABS(4)",
+                "CODE",
+                "NOCOND",
+                "SYMBOLS"
             ],
             "$listPath": {
                 "type": "value",
-                "prefix": "CODE PRINT (",
+                "prefix": "PRINT(",
                 "suffix": ")",
                 "command": "${listPath}"
             },
             "optimization": {
                 "type": "value",
                 "command": "",
-                "prefix": "OPTIMIZE (",
-                "suffix": ")",
-                "description": ""
+                "prefix": "OPTIMIZE(",
+                "suffix": ")"
             },
             "ram-mode": {
                 "type": "selectable",
@@ -59,8 +60,7 @@
                     "COMPACT": "COMPACT",
                     "LARGE": "LARGE",
                     "false": "SMALL"
-                },
-                "description": ""
+                }
             },
             "rom-mode": {
                 "type": "selectable",
@@ -70,9 +70,8 @@
                     "LARGE": "LARGE",
                     "false": "LARGE"
                 },
-                "prefix": "ROM (",
-                "suffix": ")",
-                "description": ""
+                "prefix": "ROM(",
+                "suffix": ")"
             }
         },
         "asm": {
@@ -91,21 +90,20 @@
             "$quotePath": false,
             "$listPath": {
                 "type": "value",
-                "prefix": "PRINT (",
+                "prefix": "PRINT(",
                 "suffix": ")",
                 "command": "${listPath}"
             },
             "ram-mode": {
                 "type": "selectable",
-                "prefix": "SET (",
+                "prefix": "SET(",
                 "suffix": ")",
                 "command": {
                     "SMALL": "SMALL",
                     "COMPACT": "COMPACT",
                     "LARGE": "LARGE",
                     "false": "LARGE"
-                },
-                "description": ""
+                }
             }
         },
         "linker": {
@@ -118,13 +116,11 @@
             "$outputSuffix": "",
             "$objPathSep": ",",
             "$commandLocation": "end",
-            "$matcher": [],
             "$linkMap": {
                 "type": "value",
-                "prefix": "PRINT (",
+                "prefix": "PRINT(",
                 "command": "${mapPath}",
-                "suffix": ")",
-                "description": ""
+                "suffix": ")"
             },
             "use-RTX": {
                 "type": "selectable",

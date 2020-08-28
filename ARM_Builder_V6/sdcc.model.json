@@ -11,13 +11,11 @@
                 "linker",
                 "elf",
                 "s19"
-            ],
-            "description": ""
+            ]
         },
         "device": {
             "type": "value",
             "command": "-m",
-            "description": "",
             "group": [
                 "c/cpp",
                 "asm",
