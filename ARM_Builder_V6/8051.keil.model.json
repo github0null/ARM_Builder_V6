@@ -75,7 +75,7 @@
             }
         },
         "asm": {
-            "$path": "BIN\\AX51.exe",
+            "$path": "BIN\\A51.exe",
             "$invoke": {
                 "useFile": true,
                 "body": "@${value}"
