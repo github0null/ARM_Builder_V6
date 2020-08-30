@@ -2098,10 +2098,6 @@ namespace ARM_Builder_V6
                     string line = lines[i].Substring(sepIndex + 1).Trim();
                     resultList.Add(toAbsolutePath(line));
                 }
-                else // parse error, return null
-                {
-                    return null;
-                }
             }
 
             string[] resList = new string[resultList.Count];
