@@ -11,6 +11,18 @@
                 "linker"
             ]
         },
+        "output-debug-info": {
+            "type": "selectable",
+            "command": {
+                "enable": "-g",
+                "disable": "",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ]
+        },
         "microcontroller-cpu": {
             "type": "keyValue",
             "command": "--cpu ",
@@ -91,7 +103,6 @@
             "$output": "-o ${out} --depend ${refPath} ${in}",
             "$default": [
                 "-c",
-                "-g",
                 "--apcs=interwork"
             ],
             "$language-c": {
@@ -201,7 +212,6 @@
             },
             "$output": "--xref -o ${out} --depend ${refPath} ${in}",
             "$default": [
-                "-g",
                 "--apcs=interwork"
             ],
             "use-microLIB": {

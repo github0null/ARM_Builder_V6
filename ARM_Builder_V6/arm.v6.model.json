@@ -55,6 +55,21 @@
                 "asm-clang"
             ]
         },
+        "output-debug-info": {
+            "type": "selectable",
+            "command": {
+                "enable": "-g",
+                "disable": "",
+                "dwarf-2": "-g -gdwarf-2",
+                "dwarf-3": "-g -gdwarf-3",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm",
+                "asm-clang"
+            ]
+        },
         "misc-controls": {
             "type": "list",
             "command": "",
@@ -83,8 +98,7 @@
             },
             "$default": [
                 "--target=arm-arm-none-eabi",
-                "-c",
-                "-gdwarf-3"
+                "-c"
             ],
             "$language-c": {
                 "type": "keyValue",
@@ -229,9 +243,6 @@
                 "useFile": true,
                 "body": "--Via ${value}"
             },
-            "$default": [
-                "-g"
-            ],
             "use-microLIB": {
                 "type": "selectable",
                 "command": {
@@ -270,8 +281,7 @@
             },
             "$default": [
                 "-x assembler-with-cpp",
-                "-c",
-                "-gdwarf-3"
+                "-c"
             ],
             "use-microLIB": {
                 "type": "selectable",

@@ -11,6 +11,18 @@
                 "linker"
             ]
         },
+        "output-debug-info": {
+            "type": "selectable",
+            "command": {
+                "enable": "--debug",
+                "disable": "",
+                "false": ""
+            },
+            "group": [
+                "c/cpp",
+                "asm"
+            ]
+        },
         "printf-formatter": {
             "type": "selectable",
             "command": {
@@ -71,7 +83,6 @@
             },
             "$output": "--dependencies=m + -o ${out} ${in}",
             "$default": [
-                "--debug",
                 "--silent"
             ],
             "$listPath": {
@@ -221,7 +232,6 @@
             },
             "$output": "--dependencies=m + -o ${out} ${in}",
             "$default": [
-                "--debug",
                 "--silent"
             ],
             "$listPath": {
