@@ -475,10 +475,9 @@ namespace ARM_Builder_V6
             if (!linkerModel.ContainsKey("$outputBin"))
                 return commandsList.ToArray();
 
-            IEnumerable<JObject> outputModelList = linkerModel["$outputBin"].Values<JObject>();
             string outFileName = outDir + Path.DirectorySeparatorChar + getOutName();
 
-            foreach (JObject outputModel in outputModelList)
+            foreach (JObject outputModel in (JArray)linkerModel["$outputBin"])
             {
                 string outFilePath = outFileName;
 
@@ -513,9 +512,7 @@ namespace ARM_Builder_V6
             if (!linkerModel.ContainsKey("$extraCommand"))
                 return commandList.ToArray();
 
-            IEnumerable<JObject> modelList = linkerModel["$extraCommand"].Values<JObject>();
-
-            foreach (JObject model in modelList)
+            foreach (JObject model in (JArray)linkerModel["$extraCommand"])
             {
                 string exePath = getToolPathByRePath(model["toolPath"].Value<string>());
 
@@ -1167,11 +1164,12 @@ namespace ARM_Builder_V6
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
                     warn("\r\n Ouput file command line: \r\n");
-                    CmdGenerator.CmdInfo[] cmdInfoList = cmdGen.genOutputCommand("main.elf");
+                    CmdGenerator.CmdInfo[] cmdInfoList = cmdGen.genOutputCommand(cmdInf.outPath);
                     foreach (CmdGenerator.CmdInfo info in cmdInfoList)
                     {
                         log("\t" + info.name + ": ");
                         log("\t\t" + info.exePath + " " + info.commandLine);
+                        log("");
                     }
 
                     return CODE_DONE;
@@ -1225,7 +1223,7 @@ namespace ARM_Builder_V6
                 // prepare build
                 DateTime time = DateTime.Now;
                 infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
-                infoWithLable("------------------------------ start build at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " ------------------------------\r\n");
+                infoWithLable("------------------------------ start building at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " ------------------------------\r\n");
 
                 foreach (var cFile in cList)
                 {
@@ -1291,7 +1289,7 @@ namespace ARM_Builder_V6
                 switchWorkDir(projectRoot);
 
                 log("");
-                infoWithLable("------------------------------ start compilation... ------------------------------");
+                infoWithLable("------------------------------ start compilation ... ------------------------------");
 
                 if (commands.Count > 0)
                 {
@@ -1329,7 +1327,7 @@ namespace ARM_Builder_V6
                 }
 
                 log("");
-                infoWithLable("------------------------------ start link... ------------------------------");
+                infoWithLable("------------------------------ start linking ... ------------------------------");
 
                 CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
 
@@ -1439,35 +1437,58 @@ namespace ARM_Builder_V6
                 }
 
                 // execute output command
-                foreach (CmdGenerator.CmdInfo outputCmdInfo in cmdGen.genOutputCommand(linkInfo.outPath))
+                CmdGenerator.CmdInfo[] commandList = cmdGen.genOutputCommand(linkInfo.outPath);
+
+                if (commandList.Length > 0)
                 {
                     log("");
-                    infoWithLable("------------------------------ start " + outputCmdInfo.name + "... ------------------------------");
+                    infoWithLable("------------------------------ start outputting file ... ------------------------------");
 
-                    try
+                    foreach (CmdGenerator.CmdInfo outputCmdInfo in commandList)
                     {
-                        string exeAbsPath = replaceEnvVariable(outputCmdInfo.exePath);
+                        log("\r\n>> " + outputCmdInfo.name, false);
 
-                        if (!File.Exists(exeAbsPath))
-                            throw new Exception("not found " + Path.GetFileName(exeAbsPath)
-                                + " !, [path] : \"" + exeAbsPath + "\"");
+                        string exeLog = "";
 
-                        // must use 'cmd', because SDCC has '>' command
-                        int outExit = runExe("cmd", "/C \"\"" + outputCmdInfo.exePath + "\" " + outputCmdInfo.commandLine + "\"", out string exeOutputTxt);
-
-                        if (!string.IsNullOrEmpty(exeOutputTxt.Trim()))
+                        try
                         {
-                            log("\r\n" + exeOutputTxt, false);
+                            string exeAbsPath = replaceEnvVariable(outputCmdInfo.exePath);
+
+                            if (!File.Exists(exeAbsPath))
+                            {
+                                throw new Exception("not found " + Path.GetFileName(exeAbsPath)
+                                    + " !, [path] : \"" + exeAbsPath + "\"");
+                            }
+
+                            // must use 'cmd', because SDCC has '>' command
+                            int eCode = runExe("cmd", "/C \"\"" + outputCmdInfo.exePath + "\" " + outputCmdInfo.commandLine + "\"", out string _exe_log);
+                            exeLog = _exe_log;
+
+                            if (eCode > ERR_LEVEL)
+                                throw new Exception("execute command failed !, exit code: " + eCode.ToString());
+
+                            // done !, output txt
+                            
+                            success("\t\t[done]"); // show status after title
+
+                            if (!string.IsNullOrEmpty(exeLog.Trim()))
+                            {
+                                log("\r\n" + exeLog, false);
+                            }
+
+                            info("\r\nfile path: \"" + outputCmdInfo.outPath + "\"");
                         }
+                        catch (Exception err)
+                        {
+                            error("\t\t[failed]"); // show status after title
 
-                        if (outExit > ERR_LEVEL)
-                            throw new Exception("exec command failed !, exit code: " + outExit.ToString());
+                            if (!string.IsNullOrEmpty(exeLog.Trim()))
+                            {
+                                log("\r\n" + exeLog, false);
+                            }
 
-                        info("\r\noutput file path: \"" + outputCmdInfo.outPath + "\"");
-                    }
-                    catch (Exception err)
-                    {
-                        warn("\r\n" + outputCmdInfo.name + " failed !, msg: " + err.Message);
+                            warn("\r\nfailed !, msg: " + err.Message);
+                        }
                     }
                 }
 

@@ -144,10 +144,14 @@
                 "suffix": ")",
                 "command": ""
             },
-            "$outputBin": {
-                "$path": "BIN\\Ohx51.exe",
-                "command": "${linkerOutput} HEX"
-            }
+            "$outputBin": [
+                {
+                    "name": "output hex file",
+                    "toolPath": "BIN\\Ohx51.exe",
+                    "outputSuffix": ".hex",
+                    "command": "${linkerOutput} HEXFILE(${output}) HEX"
+                }
+            ]
         },
         "linker-lib": {
             "$path": "BIN\\LIBX51.exe",

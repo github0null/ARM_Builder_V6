@@ -361,19 +361,19 @@
             "$outputBin": [
                 {
                     "name": "output hex file",
-                    "toolpath": "ARMCLANG\\bin\\fromelf.exe",
+                    "toolPath": "ARMCLANG\\bin\\fromelf.exe",
                     "outputSuffix": ".hex",
                     "command": "--i32 --output ${output} ${linkerOutput}"
                 },
                 {
                     "name": "output s19 file",
-                    "toolpath": "ARMCLANG\\bin\\fromelf.exe",
+                    "toolPath": "ARMCLANG\\bin\\fromelf.exe",
                     "outputSuffix": ".s19",
                     "command": "--m32 --output ${output} ${linkerOutput}"
                 },
                 {
                     "name": "output bin file",
-                    "toolpath": "ARMCLANG\\bin\\fromelf.exe",
+                    "toolPath": "ARMCLANG\\bin\\fromelf.exe",
                     "outputSuffix": ".bin",
                     "command": "--bin --output ${output} ${linkerOutput}"
                 }
