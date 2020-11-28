@@ -301,16 +301,27 @@
                 "type": "value",
                 "command": "-T "
             },
-            "$outputBin": {
-                "$path": "bin\\${toolPrefix}objcopy.exe",
-                "$outputSuffix": ".hex",
-                "command": "-O ihex ${linkerOutput} ${output}"
-            },
-            "$extraCommand": {
-                "name": "print elf size",
-                "$path": "bin\\${toolPrefix}size.exe",
-                "command": "--format=berkeley ${linkerOutput}"
-            }
+            "$outputBin": [
+                {
+                    "name": "output hex file",
+                    "toolPath": "bin\\${toolPrefix}objcopy.exe",
+                    "outputSuffix": ".hex",
+                    "command": "-O ihex ${linkerOutput} ${output}"
+                },
+                {
+                    "name": "output bin file",
+                    "toolPath": "bin\\${toolPrefix}objcopy.exe",
+                    "outputSuffix": ".bin",
+                    "command": "-O binary ${linkerOutput} ${output}"
+                }
+            ],
+            "$extraCommand": [
+                {
+                    "name": "print elf size",
+                    "toolPath": "bin\\${toolPrefix}size.exe",
+                    "command": "--format=berkeley ${linkerOutput}"
+                }
+            ]
         },
         "linker-lib": {
             "$path": "bin\\${toolPrefix}ar.exe",

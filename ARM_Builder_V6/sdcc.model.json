@@ -268,11 +268,14 @@
             "$outputSuffix": ".ihx",
             "$output": "-o ${out} ${in}",
             "$mainFirst": true,
-            "$outputBin": {
-                "$path": "bin\\packihx.exe",
-                "$outputSuffix": ".hex",
-                "command": "${linkerOutput}>${output}"
-            }
+            "$outputBin": [
+                {
+                    "name": "output hex file",
+                    "toolPath": "bin\\packihx.exe",
+                    "outputSuffix": ".hex",
+                    "command": "${linkerOutput}>${output}"
+                }
+            ]
         },
         "linker-lib": {
             "$path": "bin\\sdar.exe",

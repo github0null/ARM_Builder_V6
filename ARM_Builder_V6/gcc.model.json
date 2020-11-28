@@ -89,11 +89,20 @@
                 "type": "value",
                 "command": "-T "
             },
-            "$outputBin": {
-                "$path": "bin\\${toolPrefix}objcopy.exe",
-                "$outputSuffix": ".hex",
-                "command": "-O ihex ${linkerOutput} ${output}"
-            }
+            "$outputBin": [
+                {
+                    "name": "output hex file",
+                    "toolPath": "bin\\${toolPrefix}objcopy.exe",
+                    "outputSuffix": ".hex",
+                    "command": "-O ihex ${linkerOutput} ${output}"
+                },
+                {
+                    "name": "output bin file",
+                    "toolPath": "bin\\${toolPrefix}objcopy.exe",
+                    "outputSuffix": ".bin",
+                    "command": "-O binary ${linkerOutput} ${output}"
+                }
+            ]
         },
         "linker-lib": {
             "$path": "bin\\${toolPrefix}ar.exe",

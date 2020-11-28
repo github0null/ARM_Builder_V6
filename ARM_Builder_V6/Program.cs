@@ -41,6 +41,7 @@ namespace ARM_Builder_V6
 
         public class CmdInfo
         {
+            public string name;
             public string exePath;
             public string commandLine;
             public string sourcePath;
@@ -465,64 +466,73 @@ namespace ARM_Builder_V6
             };
         }
 
-        public CmdInfo genOutputCommand(string linkerOutputFile)
+        public CmdInfo[] genOutputCommand(string linkerOutputFile)
         {
             JObject linkerModel = models["linker"];
+            List<CmdInfo> commandsList = new List<CmdInfo>();
 
             // not need output hex/bin
             if (!linkerModel.ContainsKey("$outputBin"))
-                return null;
+                return commandsList.ToArray();
 
-            JObject outputModel = (JObject)linkerModel["$outputBin"];
-            string hexpath = outDir + Path.DirectorySeparatorChar + getOutName();
+            IEnumerable<JObject> outputModelList = linkerModel["$outputBin"].Values<JObject>();
+            string outFileName = outDir + Path.DirectorySeparatorChar + getOutName();
 
-            if (outputModel.ContainsKey("$outputSuffix"))
+            foreach (JObject outputModel in outputModelList)
             {
-                hexpath += outputModel["$outputSuffix"].Value<string>();
+                string outFilePath = outFileName;
+
+                if (outputModel.ContainsKey("outputSuffix"))
+                {
+                    outFilePath += outputModel["outputSuffix"].Value<string>();
+                }
+
+                string command = outputModel["command"].Value<string>()
+                    .Replace("${linkerOutput}", toUnixQuotingPath(linkerOutputFile))
+                    .Replace("${output}", toUnixQuotingPath(outFilePath));
+
+                commandsList.Add(new CmdInfo
+                {
+                    name = outputModel["name"].Value<string>(),
+                    exePath = getToolPathByRePath(outputModel["toolPath"].Value<string>()),
+                    commandLine = command,
+                    sourcePath = linkerOutputFile,
+                    outPath = outFilePath
+                });
             }
-            else
-            {
-                hexpath += ".hex";
-            }
 
-            string command = outputModel["command"].Value<string>()
-                .Replace("${linkerOutput}", toUnixQuotingPath(linkerOutputFile))
-                .Replace("${output}", toUnixQuotingPath(hexpath));
-
-            return new CmdInfo
-            {
-                exePath = getToolPathByRePath(outputModel["$path"].Value<string>()),
-                commandLine = command,
-                sourcePath = linkerOutputFile,
-                outPath = hexpath
-            };
+            return commandsList.ToArray();
         }
 
-        public CmdInfo genLinkerExtraCommand(string linkerOutputFile, out string title)
+        public CmdInfo[] genLinkerExtraCommand(string linkerOutputFile)
         {
             JObject linkerModel = models["linker"];
+            List<CmdInfo> commandList = new List<CmdInfo>();
 
-            title = null;
-
-            // not need output hex/bin
+            // not have Extra Command
             if (!linkerModel.ContainsKey("$extraCommand"))
-                return null;
+                return commandList.ToArray();
 
-            JObject model = (JObject)linkerModel["$extraCommand"];
+            IEnumerable<JObject> modelList = linkerModel["$extraCommand"].Values<JObject>();
 
-            string exePath = getToolPathByRePath(model["$path"].Value<string>());
-            title = model.ContainsKey("name") ? model["name"].Value<string>() : exePath;
-
-            string command = model["command"].Value<string>()
-                .Replace("${linkerOutput}", toUnixQuotingPath(linkerOutputFile));
-
-            return new CmdInfo
+            foreach (JObject model in modelList)
             {
-                exePath = exePath,
-                commandLine = command,
-                sourcePath = linkerOutputFile,
-                outPath = null
-            };
+                string exePath = getToolPathByRePath(model["toolPath"].Value<string>());
+
+                string command = model["command"].Value<string>()
+                    .Replace("${linkerOutput}", toUnixQuotingPath(linkerOutputFile));
+
+                commandList.Add(new CmdInfo
+                {
+                    name = model.ContainsKey("name") ? model["name"].Value<string>() : exePath,
+                    exePath = exePath,
+                    commandLine = command,
+                    sourcePath = linkerOutputFile,
+                    outPath = null
+                });
+            }
+
+            return commandList.ToArray();
         }
 
         public string getOutName()
@@ -1336,13 +1346,12 @@ namespace ARM_Builder_V6
                     throw new Exception("link failed !, exit code: " + linkerExitCode.ToString());
 
                 // execute extra command
-                CmdGenerator.CmdInfo extraLinkerCmd = cmdGen.genLinkerExtraCommand(linkInfo.outPath, out string cmdTitle);
-                if (extraLinkerCmd != null)
+                foreach (CmdGenerator.CmdInfo extraLinkerCmd in cmdGen.genLinkerExtraCommand(linkInfo.outPath))
                 {
                     int exitCode = runExe(extraLinkerCmd.exePath, extraLinkerCmd.commandLine, out string cmdOutput);
                     if (exitCode == CODE_DONE)
                     {
-                        log("\r\n>> " + cmdTitle + ":", false);
+                        log("\r\n>> " + extraLinkerCmd.name + ":", false);
                         log("\r\n" + cmdOutput, false);
                     }
                 }
@@ -1422,36 +1431,35 @@ namespace ARM_Builder_V6
                 }
 
                 // execute output command
-                CmdGenerator.CmdInfo outputInfo = cmdGen.genOutputCommand(linkInfo.outPath);
-                if (outputInfo != null)
+                foreach (CmdGenerator.CmdInfo outputCmdInfo in cmdGen.genOutputCommand(linkInfo.outPath))
                 {
                     log("");
-                    infoWithLable("------------------------------ start output hex... ------------------------------");
+                    infoWithLable("------------------------------ start " + outputCmdInfo.name + "... ------------------------------");
 
                     try
                     {
-                        string exeAbsPath = replaceEnvVariable(outputInfo.exePath);
+                        string exeAbsPath = replaceEnvVariable(outputCmdInfo.exePath);
 
                         if (!File.Exists(exeAbsPath))
                             throw new Exception("not found " + Path.GetFileName(exeAbsPath)
                                 + " !, [path] : \"" + exeAbsPath + "\"");
 
                         // must use 'cmd', because SDCC has '>' command
-                        int outExit = runExe("cmd", "/C \"\"" + outputInfo.exePath + "\" " + outputInfo.commandLine + "\"", out string _hexOut);
+                        int outExit = runExe("cmd", "/C \"\"" + outputCmdInfo.exePath + "\" " + outputCmdInfo.commandLine + "\"", out string exeOutputTxt);
 
-                        if (!string.IsNullOrEmpty(_hexOut.Trim()))
+                        if (!string.IsNullOrEmpty(exeOutputTxt.Trim()))
                         {
-                            log("\r\n" + _hexOut, false);
+                            log("\r\n" + exeOutputTxt, false);
                         }
 
                         if (outExit > ERR_LEVEL)
                             throw new Exception("exec command failed !, exit code: " + outExit.ToString());
 
-                        info("\r\nhex file path: \"" + outputInfo.outPath + "\"");
+                        info("\r\noutput file path: \"" + outputCmdInfo.outPath + "\"");
                     }
                     catch (Exception err)
                     {
-                        warn("\r\noutput hex file failed !, msg: " + err.Message);
+                        warn("\r\n" + outputCmdInfo.name + " failed !, msg: " + err.Message);
                     }
                 }
 
