@@ -1166,6 +1166,14 @@ namespace ARM_Builder_V6
                     cmdInf = cmdGen.genLinkCommand(new List<string> { "main.o", "obj1.o", "obj2.o" });
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
+                    warn("\r\n Ouput file command line: \r\n");
+                    CmdGenerator.CmdInfo[] cmdInfoList = cmdGen.genOutputCommand("main.elf");
+                    foreach (CmdGenerator.CmdInfo info in cmdInfoList)
+                    {
+                        log("\t" + info.name + ": ");
+                        log("\t\t" + info.exePath + " " + info.commandLine);
+                    }
+
                     return CODE_DONE;
                 }
 
