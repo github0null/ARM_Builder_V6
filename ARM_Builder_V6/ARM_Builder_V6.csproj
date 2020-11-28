@@ -80,7 +80,7 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" sdcc_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" />
+      <UserProperties arm_1v5_1model_1json__JSONSchema="http://json.schemastore.org/appsettings" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

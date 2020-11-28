@@ -363,19 +363,19 @@
                     "name": "output hex file",
                     "toolPath": "ARMCLANG\\bin\\fromelf.exe",
                     "outputSuffix": ".hex",
-                    "command": "--i32 --output ${output} ${linkerOutput}"
+                    "command": "--i32combined --output ${output} ${linkerOutput}"
                 },
                 {
                     "name": "output s19 file",
                     "toolPath": "ARMCLANG\\bin\\fromelf.exe",
                     "outputSuffix": ".s19",
-                    "command": "--m32 --output ${output} ${linkerOutput}"
+                    "command": "--m32combined --output ${output} ${linkerOutput}"
                 },
                 {
                     "name": "output bin file",
                     "toolPath": "ARMCLANG\\bin\\fromelf.exe",
                     "outputSuffix": ".bin",
-                    "command": "--bin --output ${output} ${linkerOutput}"
+                    "command": "--bincombined --output ${output} ${linkerOutput}"
                 }
             ]
         },
