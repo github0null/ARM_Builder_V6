@@ -210,7 +210,7 @@
                 "useFile": true,
                 "body": "--Via ${value}"
             },
-            "$output": "--xref -o ${out} --depend ${refPath} ${in}",
+            "$output": "-o ${out} --depend ${refPath} ${in}",
             "$default": [
                 "--apcs=interwork"
             ],

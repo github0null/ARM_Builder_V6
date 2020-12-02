@@ -418,7 +418,7 @@ namespace ARM_Builder_V6
                 {
                     throw new Exception("Not found '"
                         + mainName + ".rel' file in output list, the '"
-                        + mainName + ".rel' file must be the first linker file !");
+                        + mainName + ".rel' file must be the first object file !");
                 }
             }
 
@@ -1205,7 +1205,6 @@ namespace ARM_Builder_V6
                         throw new Exception("not found " + tool.Key + " !, [path] : \"" + absPath + "\"");
                 }
 
-
                 log("");
 
                 // switch to project root directory
@@ -1426,7 +1425,7 @@ namespace ARM_Builder_V6
                             {
                                 maxKb = romMaxSize / 1024.0f;
                                 string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                                printProgress("\r\nFLASH\tUsage: ", (float)romSize / romMaxSize, suffix);
+                                printProgress("\r\nROM\tUsage: ", (float)romSize / romMaxSize, suffix);
                             }
                         }
                     }
@@ -1852,7 +1851,6 @@ namespace ARM_Builder_V6
 
                     if (taskList.Count > 0)
                     {
-                        int x, y, cX, cY;
                         int maxLen = -1;
 
                         infoWithLable("", true, label);
@@ -1873,6 +1871,7 @@ namespace ARM_Builder_V6
                                 && cmd["disable"].Type == JTokenType.Boolean
                                 && cmd["disable"].Value<bool>())
                             {
+                                // task is disabled, ignore it !
                                 continue;
                             }
 
@@ -1881,14 +1880,9 @@ namespace ARM_Builder_V6
                                 throw new Exception("task name can't be null !");
                             }
 
-                            info("\r\n[run]>> ", false);
-
+                            // print task name
                             string tName = cmd["name"].Value<string>();
-                            log(tName + getBlanks(maxLen - tName.Length) + "\t\t", false);
-
-                            x = Console.CursorLeft;
-                            y = Console.CursorTop;
-                            log("\r\n");
+                            log("\r\n>> " + tName + getBlanks(maxLen - tName.Length) + "\t\t");
 
                             if (!cmd.ContainsKey("command"))
                             {
@@ -1901,25 +1895,17 @@ namespace ARM_Builder_V6
                             foreach (var item in envList)
                                 command = item.Key.Replace(command, item.Value);
 
-                            if (system('"' + command + '"') == CODE_DONE)
+                            // run command
+                            if (runExe("cmd", "/C \"" + command + "\"", out string cmdStdout) == CODE_DONE)
                             {
-                                cX = Console.CursorLeft;
-                                cY = Console.CursorTop;
-                                Console.CursorLeft = x;
-                                Console.CursorTop = y;
-                                success("[done]");
-                                Console.CursorLeft = cX;
-                                Console.CursorTop = cY;
+                                success("[done]\r\n");
+                                log(cmdStdout);
                             }
                             else
                             {
-                                cX = Console.CursorLeft;
-                                cY = Console.CursorTop;
-                                Console.CursorLeft = x;
-                                Console.CursorTop = y;
-                                error("[failed]");
-                                Console.CursorLeft = cX;
-                                Console.CursorTop = cY;
+                                error("[failed]\r\n");
+                                log(command + "\r\n");
+                                error(cmdStdout);
 
                                 if (cmd.ContainsKey("stopBuildAfterFailed")
                                     && cmd["stopBuildAfterFailed"].Type == JTokenType.Boolean

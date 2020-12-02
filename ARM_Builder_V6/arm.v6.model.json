@@ -238,7 +238,7 @@
             "$defines": {
                 "body": "--pd \"${key} SETA ${value}\""
             },
-            "$output": "--xref -o ${out} ${in}",
+            "$output": "-o ${out} --depend ${refPath} ${in}",
             "$invoke": {
                 "useFile": true,
                 "body": "--Via ${value}"
