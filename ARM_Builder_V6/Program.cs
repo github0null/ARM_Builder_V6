@@ -1361,7 +1361,7 @@ namespace ARM_Builder_V6
                     }
                 }
 
-                // print more information
+                // print ram/rom usage
                 if (linkInfo.sourcePath != null && File.Exists(linkInfo.sourcePath))
                 {
                     try
@@ -1413,7 +1413,7 @@ namespace ARM_Builder_V6
                             {
                                 maxKb = ramMaxSize / 1024.0f;
                                 string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                                printProgress("\r\nRAM\tUsage: ", (float)ramSize / ramMaxSize, suffix);
+                                printProgress("\r\nRAM Usage: ", (float)ramSize / ramMaxSize, suffix);
                             }
                         }
 
@@ -1425,7 +1425,7 @@ namespace ARM_Builder_V6
                             {
                                 maxKb = romMaxSize / 1024.0f;
                                 string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                                printProgress("\r\nROM\tUsage: ", (float)romSize / romMaxSize, suffix);
+                                printProgress("\r\nROM Usage: ", (float)romSize / romMaxSize, suffix);
                             }
                         }
                     }
@@ -1467,7 +1467,7 @@ namespace ARM_Builder_V6
                                 throw new Exception("execute command failed !, exit code: " + eCode.ToString());
 
                             // done !, output txt
-                            
+
                             success("\t\t[done]"); // show status after title
 
                             if (!string.IsNullOrEmpty(exeLog.Trim()))
@@ -1882,7 +1882,7 @@ namespace ARM_Builder_V6
 
                             // print task name
                             string tName = cmd["name"].Value<string>();
-                            log("\r\n>> " + tName + getBlanks(maxLen - tName.Length) + "\t\t");
+                            log("\r\n>> " + tName + getBlanks(maxLen - tName.Length) + "\t\t", false);
 
                             if (!cmd.ContainsKey("command"))
                             {
@@ -1899,13 +1899,15 @@ namespace ARM_Builder_V6
                             if (runExe("cmd", "/C \"" + command + "\"", out string cmdStdout) == CODE_DONE)
                             {
                                 success("[done]\r\n");
-                                log(cmdStdout);
+                                if (!string.IsNullOrEmpty(cmdStdout.Trim()))
+                                    log(cmdStdout, false);
                             }
                             else
                             {
                                 error("[failed]\r\n");
                                 log(command + "\r\n");
-                                error(cmdStdout);
+                                if (!string.IsNullOrEmpty(cmdStdout.Trim()))
+                                    error(cmdStdout, false);
 
                                 if (cmd.ContainsKey("stopBuildAfterFailed")
                                     && cmd["stopBuildAfterFailed"].Type == JTokenType.Boolean
