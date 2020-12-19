@@ -1117,6 +1117,9 @@ namespace ARM_Builder_V6
 
             try
             {
+                // record start time
+                DateTime time = DateTime.Now;
+
                 Directory.CreateDirectory(outDir);
                 CmdGenerator cmdGen = new CmdGenerator(compilerModel, paramsObj, new CmdGenerator.GeneratorOption
                 {
@@ -1220,7 +1223,6 @@ namespace ARM_Builder_V6
                 resetWorkDir();
 
                 // prepare build
-                DateTime time = DateTime.Now;
                 infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
                 infoWithLable("------------------------------ start building at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " ------------------------------\r\n");
 
@@ -1496,10 +1498,10 @@ namespace ARM_Builder_V6
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                doneWithLable(
-                    "------------------------------ build successfully !, elapsed time "
+                success(
+                    "============================== build successfully !, elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " ------------------------------\r\n", true, " DONE "
+                    + " ==============================\r\n", true
                 );
             }
             catch (Exception err)
