@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 
-namespace ARM_Builder_V6
+namespace unify_builder
 {
     class Utility
     {
@@ -1150,23 +1150,23 @@ namespace ARM_Builder_V6
 
                     CmdGenerator.CmdInfo cmdInf;
 
-                    warn("\r\n C command line: \r\n");
+                    warn("\r\nC command line: \r\n");
                     cmdInf = cmdGen.fromCFile("c_file.c");
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
-                    warn("\r\n CPP command line: \r\n");
+                    warn("\r\nCPP command line: \r\n");
                     cmdInf = cmdGen.fromCppFile("cpp_file.cpp");
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
-                    warn("\r\n ASM command line: \r\n");
+                    warn("\r\nASM command line: \r\n");
                     cmdInf = cmdGen.fromAsmFile("asm_file.s");
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
-                    warn("\r\n Linker command line: \r\n");
+                    warn("\r\nLinker command line: \r\n");
                     cmdInf = cmdGen.genLinkCommand(new List<string> { "main.o", "obj1.o", "obj2.o" });
                     log(cmdInf.exePath + " " + cmdInf.commandLine);
 
-                    warn("\r\n Ouput file command line: \r\n");
+                    warn("\r\nOuput file command line: \r\n");
                     CmdGenerator.CmdInfo[] cmdInfoList = cmdGen.genOutputCommand(cmdInf.outPath);
                     foreach (CmdGenerator.CmdInfo info in cmdInfoList)
                     {
@@ -1477,7 +1477,7 @@ namespace ARM_Builder_V6
                                 log("\r\n" + exeLog, false);
                             }
 
-                            info("\r\nfile path: \"" + outputCmdInfo.outPath + "\"");
+                            log("\r\nfile path: \"" + outputCmdInfo.outPath + "\"");
                         }
                         catch (Exception err)
                         {
@@ -1498,11 +1498,12 @@ namespace ARM_Builder_V6
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                success(
-                    "============================== build successfully !, elapsed time "
+                log("==============================", false);
+                success(" build successfully !, elapsed time "
                     + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " ==============================\r\n", true
-                );
+                    + " ", false);
+                log("==============================", true);
+                log("");
             }
             catch (Exception err)
             {
