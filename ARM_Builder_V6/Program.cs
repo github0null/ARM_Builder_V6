@@ -1498,7 +1498,7 @@ namespace unify_builder
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                doneWithLable("==============================", false, " DONE ");
+                doneWithLable("==============================", false);
                 success(" build successfully !, elapsed time " + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds) + " ", false);
                 log("==============================", true);
                 log("");
@@ -2349,10 +2349,12 @@ namespace unify_builder
 
         static void doneWithLable(string txt, bool newLine = true, string label = "DONE")
         {
-            Console.ForegroundColor = ConsoleColor.Black;
-            Console.BackgroundColor = ConsoleColor.Green;
+            Console.Write("[");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.BackgroundColor = ConsoleColor.Black;
             Console.Write(" " + label + " ");
             Console.ResetColor();
+            Console.Write("]");
             Console.Write(" " + (newLine ? (txt + "\r\n") : txt));
         }
     }
