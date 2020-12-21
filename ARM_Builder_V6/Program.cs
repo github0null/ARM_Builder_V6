@@ -1115,11 +1115,11 @@ namespace unify_builder
             Dictionary<string, string> toolPaths = new Dictionary<string, string>();
             Dictionary<Regex, string> tasksEnv = new Dictionary<Regex, string>();
 
+            // record build start time
+            DateTime time = DateTime.Now;
+
             try
             {
-                // record start time
-                DateTime time = DateTime.Now;
-
                 Directory.CreateDirectory(outDir);
                 CmdGenerator cmdGen = new CmdGenerator(compilerModel, paramsObj, new CmdGenerator.GeneratorOption
                 {
@@ -1498,18 +1498,17 @@ namespace unify_builder
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                log("==============================", false);
-                success(" build successfully !, elapsed time "
-                    + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds)
-                    + " ", false);
+                doneWithLable("==============================", false, " DONE ");
+                success(" build successfully !, elapsed time " + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds) + " ", false);
                 log("==============================", true);
                 log("");
             }
             catch (Exception err)
             {
+                TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
                 errorWithLable(err.Message + "\r\n");
-                errorWithLable("build failed !");
+                errorWithLable("build failed !, elapsed time " + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds));
                 log("");
 
                 // reset work dir when failed
@@ -1736,11 +1735,13 @@ namespace unify_builder
 
             StringBuilder output = new StringBuilder();
 
-            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e)
+            {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
-            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e)
+            {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
@@ -1774,7 +1775,8 @@ namespace unify_builder
             for (int i = 0; i < thrNum; i++)
             {
                 tEvents[i] = new ManualResetEvent(false);
-                tasks[i] = new Thread(delegate (object _dat) {
+                tasks[i] = new Thread(delegate (object _dat)
+                {
 
                     TaskData dat = (TaskData)_dat;
 
