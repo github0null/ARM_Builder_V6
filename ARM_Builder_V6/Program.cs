@@ -916,6 +916,8 @@ namespace unify_builder
                 {
                     macro = define.Substring(0, index).Trim();
                     value = define.Substring(index + 1).Trim();
+                    // remove '"' from value
+                    value = (value[0] == '"' && value[value.Length - 1] == '"') ? value.Substring(1, value.Length - 2) : value;
                     cmds.Add(defFormat.body.Replace("${key}", macro).Replace("${value}", value));
                 }
                 else // macro have no '='
@@ -1735,13 +1737,11 @@ namespace unify_builder
 
             StringBuilder output = new StringBuilder();
 
-            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e)
-            {
+            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e) {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
-            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e)
-            {
+            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e) {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
@@ -1775,8 +1775,7 @@ namespace unify_builder
             for (int i = 0; i < thrNum; i++)
             {
                 tEvents[i] = new ManualResetEvent(false);
-                tasks[i] = new Thread(delegate (object _dat)
-                {
+                tasks[i] = new Thread(delegate (object _dat) {
 
                     TaskData dat = (TaskData)_dat;
 
