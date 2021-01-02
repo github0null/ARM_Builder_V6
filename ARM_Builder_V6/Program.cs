@@ -853,6 +853,7 @@ namespace unify_builder
                 case "list":
                     {
                         List<string> cmdList = new List<string>();
+
                         string cmd = option["command"].Value<string>();
 
                         if (value != null)
@@ -1372,6 +1373,7 @@ namespace unify_builder
                     {
                         int ramSize = -1;
                         int romSize = -1;
+                        bool hasPrintNewline = false;
 
                         Regex ramReg = cmdGen.getRamSizeMatcher();
                         Regex romReg = cmdGen.getRomSizeMatcher();
@@ -1384,7 +1386,13 @@ namespace unify_builder
                         {
                             if (Array.FindIndex(regList, (Regex reg) => { return reg.IsMatch(line); }) != -1)
                             {
-                                log("\r\n" + line.Trim());
+                                if (hasPrintNewline == false)
+                                {
+                                    log("");
+                                    hasPrintNewline = true;
+                                }
+
+                                log(line.Trim());
 
                                 if (ramSize == -1 && ramReg != null)
                                 {
@@ -1409,27 +1417,32 @@ namespace unify_builder
                         float sizeKb = 0.0f;
                         float maxKb = 0.0f;
 
-                        if (ramSize >= 0) // print RAM info
+                        if (ramSize >= 0 || romSize >= 0)
                         {
-                            sizeKb = ramSize / 1024.0f;
+                            log("");
 
-                            if (ramMaxSize != -1)
+                            if (ramSize >= 0) // print RAM info
                             {
-                                maxKb = ramMaxSize / 1024.0f;
-                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                                printProgress("\r\nRAM Usage: ", (float)ramSize / ramMaxSize, suffix);
+                                sizeKb = ramSize / 1024.0f;
+
+                                if (ramMaxSize != -1)
+                                {
+                                    maxKb = ramMaxSize / 1024.0f;
+                                    string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                                    printProgress("RAM  : ", (float)ramSize / ramMaxSize, suffix);
+                                }
                             }
-                        }
 
-                        if (romSize >= 0) // print ROM info
-                        {
-                            sizeKb = romSize / 1024.0f;
-
-                            if (romMaxSize != -1)
+                            if (romSize >= 0) // print ROM info
                             {
-                                maxKb = romMaxSize / 1024.0f;
-                                string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
-                                printProgress("\r\nROM Usage: ", (float)romSize / romMaxSize, suffix);
+                                sizeKb = romSize / 1024.0f;
+
+                                if (romMaxSize != -1)
+                                {
+                                    maxKb = romMaxSize / 1024.0f;
+                                    string suffix = "\t" + sizeKb.ToString("f1") + "KB/" + maxKb.ToString("f1") + "KB";
+                                    printProgress("FLASH: ", (float)romSize / romMaxSize, suffix);
+                                }
                             }
                         }
                     }

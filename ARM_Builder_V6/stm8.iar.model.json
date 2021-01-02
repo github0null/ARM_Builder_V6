@@ -288,7 +288,7 @@
                 "command": "--map ${mapPath}"
             },
             "linker-config": {
-                "type": "value",
+                "type": "list",
                 "command": "--config "
             },
             "config-defines": {
