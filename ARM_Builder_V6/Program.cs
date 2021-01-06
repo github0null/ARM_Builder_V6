@@ -1517,6 +1517,9 @@ namespace unify_builder
                 success(" build successfully !, elapsed time " + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds) + " ", false);
                 log("==============================", true);
                 log("");
+
+                // dump log
+                appendLogs("[done]", "build successfully !");
             }
             catch (Exception err)
             {
@@ -1530,7 +1533,7 @@ namespace unify_builder
                 resetWorkDir();
 
                 // dump error log
-                appendLogs(err);
+                appendErrLogs(err);
 
                 return CODE_ERR;
             }
@@ -2257,19 +2260,24 @@ namespace unify_builder
 
         // log func
 
-        static void appendLogs(Exception err)
+        static void appendLogs(string lable, string msg)
         {
             try
             {
                 string logFile = dumpPath + Path.DirectorySeparatorChar + "arm_builder.log";
                 string txt = "[" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "]\t";
-                txt += err.Message + "\r\n" + err.StackTrace + "\r\n\r\n";
+                txt += lable + "\r\n" + msg + "\r\n\r\n";
                 File.AppendAllText(logFile, txt);
             }
             catch (Exception _err)
             {
                 error("log dump failed !, " + _err.Message);
             }
+        }
+
+        static void appendErrLogs(Exception err)
+        {
+            appendLogs(err.Message, err.StackTrace);
         }
 
         static void log(string line, bool newLine = true)
