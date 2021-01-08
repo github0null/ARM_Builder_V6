@@ -1519,7 +1519,7 @@ namespace unify_builder
                 log("");
 
                 // dump log
-                appendLogs("[done]", "build successfully !");
+                appendLogs("[done]", "\tbuild successfully !");
             }
             catch (Exception err)
             {
