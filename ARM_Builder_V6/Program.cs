@@ -378,6 +378,9 @@ namespace unify_builder
             bool mainFirst = linkerModel.ContainsKey("$mainFirst")
                 ? linkerModel["$mainFirst"].Value<bool>() : false;
 
+            string[] lib_flags = linkerParams.ContainsKey("LIB_FLAGS")
+                ? new List<string>(linkerParams["LIB_FLAGS"].Values<string>()).ToArray() : new string[0];
+
             string outName = getOutName();
             string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
             string stableCommand = string.Join(" ", cmdLists["linker"]);
@@ -429,7 +432,8 @@ namespace unify_builder
 
             cmdLine += sep + linkerModel["$output"].Value<string>()
                 .Replace("${out}", toUnixQuotingPath(outPath))
-                .Replace("${in}", string.Join(objSep, objList.ToArray()));
+                .Replace("${in}", string.Join(objSep, objList.ToArray()))
+                .Replace("${lib_flags}", string.Join(" ", lib_flags));
 
             switch (cmdLocation)
             {
