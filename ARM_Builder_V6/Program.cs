@@ -41,7 +41,8 @@ namespace unify_builder
 
         public class CmdInfo
         {
-            public string name;
+            public string compilerType;
+            public string title;
             public string exePath;
             public string commandLine;
             public string sourcePath;
@@ -459,6 +460,7 @@ namespace unify_builder
 
             return new CmdInfo
             {
+                compilerType = "linker",
                 exePath = getToolPath("linker"),
                 commandLine = commandLine,
                 sourcePath = mapPath,
@@ -492,7 +494,7 @@ namespace unify_builder
 
                 commandsList.Add(new CmdInfo
                 {
-                    name = outputModel["name"].Value<string>(),
+                    title = outputModel["name"].Value<string>(),
                     exePath = getToolPathByRePath(outputModel["toolPath"].Value<string>()),
                     commandLine = command,
                     sourcePath = linkerOutputFile,
@@ -521,7 +523,7 @@ namespace unify_builder
 
                 commandList.Add(new CmdInfo
                 {
-                    name = model.ContainsKey("name") ? model["name"].Value<string>() : exePath,
+                    title = model.ContainsKey("name") ? model["name"].Value<string>() : exePath,
                     exePath = exePath,
                     commandLine = command,
                     sourcePath = linkerOutputFile,
@@ -684,6 +686,7 @@ namespace unify_builder
 
             return new CmdInfo
             {
+                compilerType = modelName,
                 exePath = getToolPath(modelName),
                 commandLine = commandLines,
                 sourcePath = fpath,
@@ -1173,7 +1176,7 @@ namespace unify_builder
                     CmdGenerator.CmdInfo[] cmdInfoList = cmdGen.genOutputCommand(cmdInf.outPath);
                     foreach (CmdGenerator.CmdInfo info in cmdInfoList)
                     {
-                        log("\t" + info.name + ": ");
+                        log("\t" + info.title + ": ");
                         log("\t\t" + info.exePath + " " + info.commandLine);
                         log("");
                     }
@@ -1293,7 +1296,7 @@ namespace unify_builder
                 switchWorkDir(projectRoot);
 
                 log("");
-                infoWithLable("------------------------------ start compilation ... ------------------------------");
+                infoWithLable("-------------------- start compilation ... --------------------");
 
                 if (commands.Count > 0)
                 {
@@ -1304,7 +1307,9 @@ namespace unify_builder
                 {
                     foreach (var cmdInfo in commands.Values)
                     {
-                        log(">> compiling '" + Path.GetFileName(cmdInfo.sourcePath) + "'");
+                        string logTag = cmdInfo.compilerType == "asm" ? "assembling" : "compiling";
+                        log(">> " + logTag + " '" + Path.GetFileName(cmdInfo.sourcePath) + "'");
+
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
                         // ignore normal output
@@ -1331,7 +1336,7 @@ namespace unify_builder
                 }
 
                 log("");
-                infoWithLable("------------------------------ start linking ... ------------------------------");
+                infoWithLable("-------------------- start linking ... --------------------");
 
                 CmdGenerator.CmdInfo linkInfo = cmdGen.genLinkCommand(linkerFiles);
 
@@ -1361,7 +1366,7 @@ namespace unify_builder
                     int exitCode = runExe(extraLinkerCmd.exePath, extraLinkerCmd.commandLine, out string cmdOutput);
                     if (exitCode == CODE_DONE)
                     {
-                        log("\r\n>> " + extraLinkerCmd.name + ":", false);
+                        log("\r\n>> " + extraLinkerCmd.title + ":", false);
                         log("\r\n" + cmdOutput, false);
                     }
                 }
@@ -1458,11 +1463,11 @@ namespace unify_builder
                 if (commandList.Length > 0)
                 {
                     log("");
-                    infoWithLable("------------------------------ start outputting file ... ------------------------------");
+                    infoWithLable("-------------------- start outputting file ... --------------------");
 
                     foreach (CmdGenerator.CmdInfo outputCmdInfo in commandList)
                     {
-                        log("\r\n>> " + outputCmdInfo.name, false);
+                        log("\r\n>> " + outputCmdInfo.title, false);
 
                         string exeLog = "";
 
@@ -1513,9 +1518,9 @@ namespace unify_builder
 
                 TimeSpan tSpan = DateTime.Now.Subtract(time);
                 log("");
-                doneWithLable("==============================", false);
+                doneWithLable("====================", false);
                 success(" build successfully !, elapsed time " + string.Format("{0}:{1}:{2}", tSpan.Hours, tSpan.Minutes, tSpan.Seconds) + " ", false);
-                log("==============================", true);
+                log("====================", true);
                 log("");
 
                 // dump log
@@ -1753,11 +1758,13 @@ namespace unify_builder
 
             StringBuilder output = new StringBuilder();
 
-            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e)
+            {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
-            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e) {
+            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e)
+            {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
@@ -1791,7 +1798,8 @@ namespace unify_builder
             for (int i = 0; i < thrNum; i++)
             {
                 tEvents[i] = new ManualResetEvent(false);
-                tasks[i] = new Thread(delegate (object _dat) {
+                tasks[i] = new Thread(delegate (object _dat)
+                {
 
                     TaskData dat = (TaskData)_dat;
 
@@ -1802,7 +1810,8 @@ namespace unify_builder
                             break;
                         }
 
-                        log(">> compiling '" + Path.GetFileName(cmds[index].sourcePath) + "'");
+                        string logTag = cmds[index].compilerType == "asm" ? "assembling" : "compiling";
+                        log(">> "+ logTag +" '" + Path.GetFileName(cmds[index].sourcePath) + "'");
 
                         int exitCode = runExe(cmds[index].exePath, cmds[index].commandLine, out string output);
 
