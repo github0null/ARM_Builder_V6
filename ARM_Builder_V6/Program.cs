@@ -416,8 +416,8 @@ namespace unify_builder
             bool mainFirst = linkerModel.ContainsKey("$mainFirst")
                 ? linkerModel["$mainFirst"].Value<bool>() : false;
 
-            string lib_flags = getCommandValue((JObject)linkerModel["$LIB_FLAGS"],
-                linkerParams.ContainsKey("LIB_FLAGS") ? Utility.getJObjectVal(linkerParams["LIB_FLAGS"]) : "");
+            string lib_flags = linkerModel.ContainsKey("$LIB_FLAGS") && linkerParams.ContainsKey("LIB_FLAGS")
+                ? getCommandValue((JObject)linkerModel["$LIB_FLAGS"], Utility.getJObjectVal(linkerParams["LIB_FLAGS"])) : "";
 
             string outName = getOutName();
             string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
