@@ -27,6 +27,16 @@ namespace unify_builder
 
             return res.ToArray();
         }
+
+        public static string toUnixPath(string path)
+        {
+            return path.Replace('\\', '/');
+        }
+
+        public static string toLocalPath(string path)
+        {
+            return path.Replace('/', Path.DirectorySeparatorChar);
+        }
     }
 
     class CmdGenerator
@@ -304,8 +314,7 @@ namespace unify_builder
                             {
                                 try
                                 {
-                                    string value = getCommandValue(
-                                        (JObject)cmpModel[key], getValueFromParamList(cmpParams, key));
+                                    string value = getCommandValue((JObject)cmpModel[key], getValueFromParamList(cmpParams, key));
                                     commandList[i] = commandList[i].Replace("${" + key + "}", value);
                                 }
                                 catch (Exception)
@@ -379,6 +388,9 @@ namespace unify_builder
             bool mainFirst = linkerModel.ContainsKey("$mainFirst")
                 ? linkerModel["$mainFirst"].Value<bool>() : false;
 
+            string[] lib_flags = linkerParams.ContainsKey("LIB_FLAGS")
+                ? new List<string>(linkerParams["LIB_FLAGS"].Values<string>()).ToArray() : new string[0];
+
             string outName = getOutName();
             string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
             string stableCommand = string.Join(" ", cmdLists["linker"]);
@@ -430,7 +442,8 @@ namespace unify_builder
 
             cmdLine += sep + linkerModel["$output"].Value<string>()
                 .Replace("${out}", toUnixQuotingPath(outPath))
-                .Replace("${in}", string.Join(objSep, objList.ToArray()));
+                .Replace("${in}", string.Join(objSep, objList.ToArray()))
+                .Replace("${lib_flags}", string.Join(" ", lib_flags));
 
             switch (cmdLocation)
             {
@@ -701,8 +714,8 @@ namespace unify_builder
                 return null;
             }
 
-            string[] rList = root.Replace('\\', '/').Split('/');
-            string[] absList = absPath.Replace('\\', '/').Split('/');
+            string[] rList = Utility.toUnixPath(root).Split('/');
+            string[] absList = Utility.toUnixPath(absPath).Split('/');
 
             int cIndex;
             for (cIndex = 0; cIndex < rList.Length; cIndex++)
@@ -715,7 +728,7 @@ namespace unify_builder
 
             if (cIndex == rList.Length)
             {
-                return ("." + absPath.Substring(root.Length)).Replace('/', Path.DirectorySeparatorChar);
+                return Utility.toLocalPath("." + absPath.Substring(root.Length));
             }
 
             return null;
@@ -734,7 +747,7 @@ namespace unify_builder
 
             if (useUnixPath)
             {
-                return (quote && path.Contains(" ")) ? ("\"" + path.Replace("\\", "/") + "\"") : path.Replace("\\", "/");
+                path = Utility.toUnixPath(path);
             }
 
             return (quote && path.Contains(" ")) ? ("\"" + path + "\"") : path;
@@ -771,50 +784,30 @@ namespace unify_builder
         private string getCommandValue(JObject option, object value)
         {
             string type = option["type"].Value<string>();
-            switch (type)
+
+            // check list type
+            if (type == "list")
             {
-                case "list":
-                    if (value != null)
-                    {
-                        if (!(value is IEnumerable<string>))
-                        {
-                            throw new TypeErrorException("array");
-                        }
-                    }
-                    break;
-                default:
-                    if (value != null)
-                    {
-                        if (!(value is string))
-                        {
-                            throw new TypeErrorException("string");
-                        }
-                    }
-                    break;
+                if (value is string)
+                {
+                    type = "value"; /* compatible type: 'list' and 'value' */
+                }
+                else if (value != null && !(value is IEnumerable<string>))
+                {
+                    throw new TypeErrorException("array");
+                }
             }
 
-            string prefix = null;
-            string suffix = null;
-
-            if (option.ContainsKey("prefix"))
+            // check other type (other type must be a string)
+            else if (value != null && !(value is string))
             {
-                prefix = option["prefix"].Value<string>();
-            }
-            else
-            {
-                prefix = "";
+                throw new TypeErrorException("string");
             }
 
-            if (option.ContainsKey("suffix"))
-            {
-                suffix = option["suffix"].Value<string>();
-            }
-            else
-            {
-                suffix = "";
-            }
-
+            string prefix = option.ContainsKey("prefix") ? option["prefix"].Value<string>() : "";
+            string suffix = option.ContainsKey("suffix") ? option["suffix"].Value<string>() : "";
             string command = null;
+
             switch (type)
             {
                 case "selectable":
@@ -848,8 +841,8 @@ namespace unify_builder
                 case "value":
                     if (value != null)
                     {
-                        // set commmand, convert '\\' -> '/'
-                        string nValue = useUnixPath ? ((string)value).Replace('\\', '/') : (string)value;
+                        // convert '\\' -> '/'
+                        string nValue = useUnixPath ? Utility.toUnixPath((string)value) : (string)value;
                         command = option["command"].Value<string>() + nValue;
                     }
                     break;
@@ -863,7 +856,9 @@ namespace unify_builder
                         {
                             foreach (var item in (IEnumerable<string>)value)
                             {
-                                cmdList.Add(cmd + item);
+                                // convert '\\' -> '/'
+                                string nValue = useUnixPath ? Utility.toUnixPath(item) : item;
+                                cmdList.Add(cmd + nValue);
                             }
 
                             command = string.Join(" ", cmdList.ToArray());
@@ -2095,7 +2090,7 @@ namespace unify_builder
 
         static string toAbsolutePath(string _repath)
         {
-            string repath = _repath.Replace('/', Path.DirectorySeparatorChar);
+            string repath = Utility.toLocalPath(_repath);
 
             if (repath.Length > 1 && char.IsLetter(repath[0]) && repath[1] == ':')
             {
