@@ -37,6 +37,34 @@ namespace unify_builder
         {
             return path.Replace('/', Path.DirectorySeparatorChar);
         }
+
+        // convert JObject to 'string' or 'IEnumerable<string>'
+        public static object getJObjectVal(JToken jobj)
+        {
+            object paramsValue;
+
+            switch (jobj.Type)
+            {
+                case JTokenType.String:
+                    paramsValue = jobj.Value<string>();
+                    break;
+                case JTokenType.Boolean:
+                    paramsValue = jobj.Value<bool>() ? "true" : "false";
+                    break;
+                case JTokenType.Integer:
+                case JTokenType.Float:
+                    paramsValue = jobj.Value<object>().ToString();
+                    break;
+                case JTokenType.Array:
+                    paramsValue = jobj.Values<string>();
+                    break;
+                default:
+                    paramsValue = null;
+                    break;
+            }
+
+            return paramsValue;
+        }
     }
 
     class CmdGenerator
@@ -388,8 +416,8 @@ namespace unify_builder
             bool mainFirst = linkerModel.ContainsKey("$mainFirst")
                 ? linkerModel["$mainFirst"].Value<bool>() : false;
 
-            string lib_flags = getCommandValue((JObject)linkerModel["$LIB_FLAGS"], 
-                linkerParams.ContainsKey("LIB_FLAGS") ? (object)linkerParams["LIB_FLAGS"].Values<string>() : "");
+            string lib_flags = getCommandValue((JObject)linkerModel["$LIB_FLAGS"],
+                linkerParams.ContainsKey("LIB_FLAGS") ? Utility.getJObjectVal(linkerParams["LIB_FLAGS"]) : "");
 
             string outName = getOutName();
             string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
@@ -592,24 +620,8 @@ namespace unify_builder
             {
                 if (param.ContainsKey(key))
                 {
-                    switch (param[key].Type)
-                    {
-                        case JTokenType.String:
-                            paramsValue = param[key].Value<string>();
-                            break;
-                        case JTokenType.Boolean:
-                            paramsValue = param[key].Value<bool>() ? "true" : "false";
-                            break;
-                        case JTokenType.Integer:
-                        case JTokenType.Float:
-                            paramsValue = param[key].Value<object>().ToString();
-                            break;
-                        case JTokenType.Array:
-                            paramsValue = param[key].Values<string>();
-                            break;
-                        default:
-                            break;
-                    }
+                    paramsValue = Utility.getJObjectVal(param[key]);
+                    // note: can't break this loop, we need overwrite old value
                 }
             }
 
@@ -1806,7 +1818,7 @@ namespace unify_builder
                         }
 
                         string logTag = cmds[index].compilerType == "asm" ? "assembling" : "compiling";
-                        log(">> "+ logTag +" '" + Path.GetFileName(cmds[index].sourcePath) + "'");
+                        log(">> " + logTag + " '" + Path.GetFileName(cmds[index].sourcePath) + "'");
 
                         int exitCode = runExe(cmds[index].exePath, cmds[index].commandLine, out string output);
 
