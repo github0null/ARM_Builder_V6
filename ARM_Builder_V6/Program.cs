@@ -1225,7 +1225,7 @@ namespace unify_builder
 
                 // prepare build
                 infoWithLable(cmdGen.getModelName() + "\r\n", true, "TOOL");
-                infoWithLable("------------------------------ start building at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " ------------------------------\r\n");
+                infoWithLable("-------------------- start building at " + time.ToString("yyyy-MM-dd HH:mm:ss") + " --------------------\r\n");
 
                 foreach (var cFile in cList)
                 {
