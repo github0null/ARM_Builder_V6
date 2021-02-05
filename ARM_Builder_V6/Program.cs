@@ -388,8 +388,8 @@ namespace unify_builder
             bool mainFirst = linkerModel.ContainsKey("$mainFirst")
                 ? linkerModel["$mainFirst"].Value<bool>() : false;
 
-            string[] lib_flags = linkerParams.ContainsKey("LIB_FLAGS")
-                ? new List<string>(linkerParams["LIB_FLAGS"].Values<string>()).ToArray() : new string[0];
+            string lib_flags = getCommandValue((JObject)linkerModel["$LIB_FLAGS"], 
+                linkerParams.ContainsKey("LIB_FLAGS") ? (object)linkerParams["LIB_FLAGS"].Values<string>() : "");
 
             string outName = getOutName();
             string outPath = outDir + Path.DirectorySeparatorChar + outName + outSuffix;
@@ -443,7 +443,7 @@ namespace unify_builder
             cmdLine += sep + linkerModel["$output"].Value<string>()
                 .Replace("${out}", toUnixQuotingPath(outPath))
                 .Replace("${in}", string.Join(objSep, objList.ToArray()))
-                .Replace("${lib_flags}", string.Join(" ", lib_flags));
+                .Replace("${lib_flags}", lib_flags);
 
             switch (cmdLocation)
             {
