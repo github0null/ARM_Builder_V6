@@ -2243,14 +2243,6 @@ namespace unify_builder
                     {
                         libList.Add(file.FullName);
                     }
-                    else
-                    {
-                        warn("ignore unsupported source file, [path] : \"" + sourcePath + "\"");
-                    }
-                }
-                else
-                {
-                    warn("ignore invalid source file, [path] : \"" + sourcePath + "\"");
                 }
             }
         }
