@@ -312,7 +312,11 @@
                 "enum": {
                     "cortex-m0": "arm-arm-none-eabi",
                     "cortex-m0+": "arm-arm-none-eabi",
+                    "cortex-m23": "arm-arm-none-eabi",
                     "cortex-m3": "arm-arm-none-eabi",
+                    "cortex-m33": "arm-arm-none-eabi",
+                    "cortex-m33-none": "arm-arm-none-eabi",
+                    "cortex-m33-sp": "arm-arm-none-eabi",
                     "cortex-m4-none": "armv7em-arm-none-eabi",
                     "cortex-m4-sp": "arm-arm-none-eabi",
                     "cortex-m7-none": "arm-arm-none-eabi",
