@@ -359,7 +359,11 @@
                 "enum": {
                     "cortex-m0": "Cortex-M0",
                     "cortex-m0+": "Cortex-M0+",
+                    "cortex-m23": "Cortex-M23",
                     "cortex-m3": "Cortex-M3",
+                    "cortex-m33": "Cortex-M33.no_dsp --fpu=SoftVFP",
+                    "cortex-m33-none": "Cortex-M33 --fpu=SoftVFP",
+                    "cortex-m33-sp": "Cortex-M33",
                     "cortex-m4-none": "Cortex-M4 --fpu=SoftVFP",
                     "cortex-m4-sp": "Cortex-M4.fp",
                     "cortex-m7-none": "Cortex-M7 --fpu=SoftVFP",
