@@ -1016,6 +1016,7 @@ namespace unify_builder
         static string projectRoot;
 
         static bool enableNormalOut = true;
+        static bool showRelativePathOnLog = false;
 
         static HashSet<BuilderMode> modeList = new HashSet<BuilderMode>();
 
@@ -1096,6 +1097,7 @@ namespace unify_builder
                 reqThreadsNum = paramsObj.ContainsKey("threadNum") ? paramsObj["threadNum"].Value<int>() : 0;
                 ramMaxSize = paramsObj.ContainsKey("ram") ? paramsObj["ram"].Value<int>() : -1;
                 romMaxSize = paramsObj.ContainsKey("rom") ? paramsObj["rom"].Value<int>() : -1;
+                showRelativePathOnLog = paramsObj.ContainsKey("showRepathOnLog") ? paramsObj["showRepathOnLog"].Value<bool>() : false;
 
                 // init other params
                 ERR_LEVEL = compilerModel.ContainsKey("ERR_LEVEL") ? compilerModel["ERR_LEVEL"].Value<int>() : ERR_LEVEL;
@@ -1314,8 +1316,8 @@ namespace unify_builder
                 {
                     foreach (var cmdInfo in commands.Values)
                     {
-                        string logTag = cmdInfo.compilerType == "asm" ? "assembling" : "compiling";
-                        log(">> " + logTag + " '" + Path.GetFileName(cmdInfo.sourcePath) + "'");
+                        string logTag = cmdInfo.compilerType == "asm" ? "AS" : "CC";
+                        log(">> " + logTag + " '" + toHumanReadablePath(cmdInfo.sourcePath) + "'");
 
                         int exitCode = runExe(cmdInfo.exePath, cmdInfo.commandLine, out string ccOut);
 
@@ -1353,7 +1355,7 @@ namespace unify_builder
 
                     foreach (var lib in libList)
                     {
-                        log(">> linking '" + Path.GetFileName(lib) + "'");
+                        log(">> linking '" + toHumanReadablePath(lib) + "'");
                     }
                 }
 
@@ -1504,7 +1506,7 @@ namespace unify_builder
                                 log("\r\n" + exeLog, false);
                             }
 
-                            log("\r\nfile path: \"" + outputCmdInfo.outPath + "\"");
+                            log("\r\nfile path: \"" + toRelativePath(outputCmdInfo.outPath, true) + "\"");
                         }
                         catch (Exception err)
                         {
@@ -1765,13 +1767,11 @@ namespace unify_builder
 
             StringBuilder output = new StringBuilder();
 
-            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e)
-            {
+            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e) {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
-            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e)
-            {
+            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e) {
                 output.Append(e.Data == null ? "" : (e.Data + "\r\n"));
             };
 
@@ -1805,8 +1805,7 @@ namespace unify_builder
             for (int i = 0; i < thrNum; i++)
             {
                 tEvents[i] = new ManualResetEvent(false);
-                tasks[i] = new Thread(delegate (object _dat)
-                {
+                tasks[i] = new Thread(delegate (object _dat) {
 
                     TaskData dat = (TaskData)_dat;
 
@@ -1817,8 +1816,8 @@ namespace unify_builder
                             break;
                         }
 
-                        string logTag = cmds[index].compilerType == "asm" ? "assembling" : "compiling";
-                        log(">> " + logTag + " '" + Path.GetFileName(cmds[index].sourcePath) + "'");
+                        string logTag = cmds[index].compilerType == "asm" ? "AS" : "CC";
+                        log(">> " + logTag + " '" + toHumanReadablePath(cmds[index].sourcePath) + "'");
 
                         int exitCode = runExe(cmds[index].exePath, cmds[index].commandLine, out string output);
 
@@ -2110,6 +2109,26 @@ namespace unify_builder
             }
 
             return projectRoot + Path.DirectorySeparatorChar + repath;
+        }
+
+        static string toRelativePath(string absPath, bool useUnixPath = false)
+        {
+            string path = Utility.toLocalPath(absPath);
+            string rePath = path;
+
+            if (path.Length > 1 && char.IsLetter(path[0]) && path[1] == ':') // is abs path
+            {
+                rePath = path.Replace(projectRoot + Path.DirectorySeparatorChar, "");
+            }
+
+            if (useUnixPath) { rePath = Utility.toUnixPath(rePath); }
+
+            return rePath;
+        }
+
+        static string toHumanReadablePath(string absPath)
+        {
+            return showRelativePathOnLog ? toRelativePath(absPath, true) : Path.GetFileName(absPath);
         }
 
         static Regex whitespaceMatcher = new Regex(@"(?<![\\:]) ", RegexOptions.Compiled);
