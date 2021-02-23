@@ -1124,6 +1124,16 @@ namespace unify_builder
                 errorWithLable("init build failed !, " + err.Message + "\r\n" + err.ToString());
                 return CODE_ERR;
             }
+            
+            // boost process priority
+            try
+            {
+                Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
+            }
+            catch (Exception)
+            {
+                // ignore
+            }
 
             Dictionary<string, CmdGenerator.CmdInfo> commands = new Dictionary<string, CmdGenerator.CmdInfo>();
             List<string> doneList = new List<string>();
