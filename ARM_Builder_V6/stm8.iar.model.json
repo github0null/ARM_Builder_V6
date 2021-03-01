@@ -223,9 +223,6 @@
             "$includes": {
                 "body": "-I ${value}"
             },
-            "$defines": {
-                "body": "-D ${key}=${value}"
-            },
             "$invoke": {
                 "useFile": true,
                 "body": "-f {value}"
