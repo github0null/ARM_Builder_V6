@@ -225,7 +225,7 @@
             },
             "$invoke": {
                 "useFile": true,
-                "body": "-f {value}"
+                "body": "-f ${value}"
             },
             "$output": "--dependencies=m + -o ${out} ${in}",
             "$default": [
